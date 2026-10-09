@@ -1,7 +1,7 @@
 // app.js -- page de la démo : chargement, presets, onglets façon plugin, son (AudioWorklet), morceau, clavier,
 // « Tous les paramètres », banc CPU. Le son est dans worklet.js ; l'état de l'interface dans store.js.
 
-import { store, initStore, param, on, real, setNorm, applyPresetText, fullState, setLive, addRoute } from './store.js';
+import { store, initStore, param, on, real, setNorm, applyPresetText, fullState, setLive } from './store.js';
 import { el, formatValue, controlLabels, closeRoutes } from './widgets.js';
 import { modPanel } from './views.js';
 import { watchTheme, invalidateAll } from './sketch.js';
@@ -120,7 +120,16 @@ function buildInstrument()
         head.style.setProperty ('--gap-l', `${r.left - h.left + 1}px`);
         head.style.setProperty ('--gap-r', `${r.right - h.left - 1}px`);
     }
-    new ResizeObserver (headerGap).observe (head);
+    // en-tête sur une ligne si tout tient (nom, onglets, preset), sinon sur deux (selon la police réelle du navigateur)
+    const fitHeader = () =>
+    {
+        head.classList.remove ('stacked');
+        const tabsW = [...tabbar.children].reduce ((w, t) => w + t.getBoundingClientRect().width, 0);
+        if (tabsW > tabbar.getBoundingClientRect().width + 1) head.classList.add ('stacked');
+        headerGap();
+    };
+    new ResizeObserver (fitHeader).observe (head);
+    document.fonts?.ready.then (fitHeader);
     // traits entre familles : début de rangée (.rs) et première rangée (.fr), recalculés quand la mise en page change
     const markRows = (box) =>
     {
@@ -140,7 +149,7 @@ function buildInstrument()
     document.fonts?.ready.then (headerGap);
     selectTab (current < 0 ? 0 : current);
 
-    $('modpanel').replaceWith (modPanel (arm));
+    $('modpanel').replaceWith (modPanel (openSection));
 
     // voix actives / voix max (comme l'en-tête du plugin)
     on ('maxVoices', () => showVoices());
@@ -153,30 +162,19 @@ function showVoices()
     $('voicesHead').textContent = `voices ${voices} / ${p.choices[Math.round (real ('maxVoices'))]}`;
 }
 
-// ---------------------------------------------------------------- mode « armé » (écran tactile) : toucher une source, puis un réglage
-let armed = null;
-function arm (src)
+// ---------------------------------------------------------------- clic court sur une tuile : sa section de l'onglet Mod
+// Comme le plugin (showModSection) : onglet Mod, défilement jusqu'à la section, surlignage bref.
+function openSection (src)
 {
-    armed = armed?.id === src.id ? null : src;
-    document.body.classList.toggle ('arming', !! armed);
-    document.querySelectorAll ('.tile').forEach (t => t.classList.toggle ('armed', +t.dataset.source === armed?.id));
-    $('armBar').hidden = ! armed;
-    if (armed) $('armText').textContent = `Touch a parameter to modulate it with ${armed.name}.`;
+    const sec = document.querySelector (`#page-mod [data-source="${src.id}"]`);
+    if (! sec || sec.hidden) return;
+    document.getElementById ('tab-mod').click();
+    sec.scrollIntoView ({ block: 'center', behavior: matchMedia ('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
+    sec.classList.remove ('flash');
+    void sec.offsetWidth;   // relance l'animation si on reclique
+    sec.classList.add ('flash');
+    sec.addEventListener ('animationend', () => sec.classList.remove ('flash'), { once: true });
 }
-document.addEventListener ('pointerdown', (e) =>
-{
-    if (! armed || e.target.closest ('.tile, #armBar')) return;
-    const t = e.target.closest ('[data-mod-key]');
-    if (t)
-    {
-        e.preventDefault();
-        e.stopPropagation();
-        addRoute (armed.id, t.dataset.modKey);
-    }
-    arm (armed);   // un seul réglage par toucher : on désarme
-}, true);
-$('armCancel').onclick = () => armed && arm (armed);
-addEventListener ('keydown', (e) => { if (e.key === 'Escape' && armed) arm (armed); });
 
 // ---------------------------------------------------------------- tous les paramètres (générés depuis la table du Core)
 // Repli pour tout ce que les onglets n'exposent pas : un paramètre ajouté au Core apparaît ici sans rien changer.

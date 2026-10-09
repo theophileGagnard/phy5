@@ -756,7 +756,7 @@ export class MappingView extends CanvasView
 // Une tuile par source active (LFO 1-4, Envelope 1-2, Env Follower 1-2, Velocity, Pitch), avec sa jauge en direct.
 // Glisser une tuile sur un contrôle crée une route (profondeur 0,5) ; sur écran tactile, toucher la tuile puis le
 // contrôle. « + » active l'instance suivante (LFO jusqu'à 4, les autres 2) ; « × » la retire avec ses routes.
-export function modPanel (onArm)
+export function modPanel (onOpen)
 {
     const root = el ('div', 'modpanel');
     const head = el ('p', 'modpanel-label', 'Modulation (drag a source onto a parameter):');
@@ -804,7 +804,7 @@ export function modPanel (onArm)
             plus.addEventListener ('click', (e) => { e.stopPropagation(); const n = enabledNext (src); if (n) setNorm (n.enable, 1); });
             t.append (plus);
         }
-        tileDrag (t, src, onArm);
+        tileDrag (t, src, onOpen);
         row.append (t);
         tiles.set (src.id, t);
         if (src.enable) on (src.enable, (v) => { t.hidden = v.real < 0.5; });
@@ -824,8 +824,8 @@ export function modPanel (onArm)
     return root;
 }
 
-// glisser-déposer d'une tuile (souris et doigt, par événements pointeur) ; simple toucher = mode « armé »
-function tileDrag (tile, src, onArm)
+// glisser-déposer d'une tuile (souris et doigt, par événements pointeur) ; clic / toucher court = ouvrir sa section (onOpen)
+function tileDrag (tile, src, onOpen)
 {
     tile.addEventListener ('pointerdown', (e) =>
     {
@@ -858,13 +858,13 @@ function tileDrag (tile, src, onArm)
                 ghost.remove();
                 if (over && ev.type === 'pointerup') addRoute (src.id, over.dataset.modKey);
             }
-            else if (ev.type === 'pointerup') onArm (src);
+            else if (ev.type === 'pointerup') onOpen (src);
         };
         tile.addEventListener ('pointermove', mv);
         tile.addEventListener ('pointerup', end);
         tile.addEventListener ('pointercancel', end);
     });
-    tile.addEventListener ('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onArm (src); } });
+    tile.addEventListener ('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onOpen (src); } });
 }
 
 export { controlLabels };

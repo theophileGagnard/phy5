@@ -104,8 +104,12 @@
   .tab[aria-selected="true"]::after { content: ""; position: absolute; left: 14px; right: 14px; bottom: 6px; height: 4px;
                                       background: var(--f-underline) 0 0 / 100% 100% no-repeat; }
   .presetbox { grid-area: preset; display: grid; align-content: center; gap: 4px; justify-items: end; min-width: 0; padding: 6px 0; }
-  .presetbox .select select { width: 230px; max-width: 100%; height: 30px; font-size: 14px; }
+  /* largeur FIXE du menu (sinon certains navigateurs le dimensionnent sur le nom de preset le plus long) */
+  .presetbox .select { width: 230px; max-width: 100%; }
+  .presetbox .select select { width: 100%; min-width: 0; height: 30px; font-size: 14px; }
   .voices { font: 400 12px var(--font-display); color: var(--warm); }
+  .whead.stacked { grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "brand preset" "tabs tabs"; gap: 2px 10px; }
+  .whead.stacked .tabs { justify-content: flex-start; }
   .presetrow { display: flex; gap: 6px; align-items: center; min-width: 0; max-width: 100%; }
   .btn.small { height: 30px; min-height: 30px; padding: 0 12px; font-size: 14px; white-space: nowrap; flex: none; }
   /* SAVE!! clignote pour attirer l'œil (pas d'animation si le système demande moins de mouvement) */
@@ -113,7 +117,7 @@
   @keyframes blink { 50% { opacity: .25; } }
   @media (prefers-reduced-motion: reduce) { .btn.blink { animation: none; } }
   /* nom du preset : coupé proprement (…) dans le cadre, la flèche ne le recouvre pas */
-  .presetbox .select { min-width: 0; flex: 1 1 auto; }
+  .presetbox .select { min-width: 0; flex: 0 1 auto; }
   .presetbox .select select { text-overflow: ellipsis; white-space: nowrap; overflow: hidden; padding-right: 30px; }
 
   /* ---------------- fenêtre « Save » (compte + preset partagé) */
@@ -203,7 +207,6 @@
   .dim { opacity: .45; }
   .modded { outline: 1.4px solid var(--cool); outline-offset: -1px; }
   .drop-hover { outline: 2.5px solid var(--hover) !important; outline-offset: -1px; }
-  .arming [data-mod-key] { outline: 1.5px dashed var(--hover); outline-offset: -1px; cursor: copy; }
   .mod-badge { display: none; position: absolute; top: 18px; right: 0; width: 20px; height: 20px; padding: 0; border: 0; border-radius: 50%;
                background: var(--cool); color: var(--on-ink); font: 700 13px/20px var(--font-data); cursor: pointer; }
   .modded > .mod-badge { display: block; }
@@ -278,6 +281,10 @@
   }
   .mapping-sec + .mapping-sec { margin-top: 8px; }
   .route-list { display: grid; gap: 6px; }
+  /* section ouverte par un clic court sur une tuile : cadre chaud et lavis jaune qui s'effacent (SectionFlash du plugin) */
+  .subsec.flash { animation: flash 1s ease-out; border-radius: 4px; }
+  @keyframes flash { from { outline: 2px solid var(--warm); outline-offset: 4px; background: color-mix(in srgb, var(--hover) 22%, transparent); }
+                     to   { outline: 2px solid transparent; outline-offset: 4px; background: transparent; } }
 
   /* ---------------- routes de modulation (propres à la page) */
   .route-row { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(80px, 1fr) 42px auto 28px; align-items: center; gap: 4px 10px;
@@ -310,12 +317,8 @@
   .tile-fill { position: absolute; left: 0; right: 0; top: 2.4px; height: 2.2px; border-radius: 1px; background: var(--warm); transform: scaleX(0); transform-origin: left; }
   .tile-btn { position: absolute; top: 3px; right: 3px; width: 18px; height: 16px; padding: 0; border: 0; background: var(--f-tile-btn) 0 0 / 100% 100% no-repeat;
               font: 400 11px/16px var(--font-display); cursor: pointer; }
-  .tile.armed { outline: 2.5px solid var(--hover); outline-offset: 1px; }
   .tile-ghost { position: fixed; top: 0; left: 0; z-index: 50; pointer-events: none; padding: 6px 12px; border: 1.3px solid var(--ink); border-radius: 2px;
                 background: var(--paper); font: 400 11px var(--font-display); box-shadow: 0 4px 12px var(--shadow); }
-  .armbar { position: fixed; left: 0; right: 0; bottom: 0; z-index: 45; display: flex; gap: 12px; align-items: center; justify-content: center; flex-wrap: wrap;
-            padding: 10px 16px; background: var(--ink); color: var(--on-ink); font: 400 14px var(--font-display); }
-  .armbar .btn { color: var(--ink); padding: 6px 12px; }
 
   /* ---------------- clavier */
   .keyboard { position: relative; height: 120px; display: flex; user-select: none; -webkit-user-select: none; touch-action: none; }
@@ -348,7 +351,7 @@
     .whead { grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "brand preset" "tabs tabs"; padding: 6px 8px 0 10px; gap: 2px 10px; }
     .brand .name { font-size: 26px; }
     .brand .ver { margin-top: 3px; }
-    .presetbox .select select { width: 160px; }
+    .presetbox .select { width: 160px; }
     .tabs { margin: 0 -2px; }
     .tab { flex: 1 1 auto; min-width: 0; padding: 0 2px; font-size: 14px; min-height: 52px; }
     .tab[aria-selected="true"]::after { left: 6px; right: 6px; bottom: 5px; }
@@ -398,9 +401,9 @@
       <div class="meters">
         <div><span>Level</span><b id="level">–</b></div>
         <div><span>Active voices</span><b id="voices">–</b></div>
-        <div><span>Sample rate</span><b id="rate">–</b></div>
+        <div hidden><span>Sample rate</span><b id="rate">–</b></div>
       </div>
-      <label class="check"><input type="checkbox" id="mobile"> Mobile limits (8 voices, 2 strings)</label>
+      <label class="check" hidden><input type="checkbox" id="mobile"> Mobile limits (8 voices, 2 strings)</label>
     </div>
     <p class="note" id="status">Pick a preset and tweak it right away; press “Play LE LUTH” or the keyboard to hear it.</p>
   </section>
@@ -420,7 +423,7 @@
     <div class="pages" id="pages"><p class="loading" id="loading">Loading the engine…</p></div>
     <div id="modpanel"></div>
   </section>
-  <p class="note">Modulation: drag a tile from the bottom of the window onto a parameter (on a touch screen: tap the tile, then the parameter). The “~” button of a modulated parameter, or a right-click, opens its routes.</p>
+  <p class="note">Modulation: drag a tile from the bottom of the window onto a parameter; a short click on a tile opens its settings. The “~” button of a modulated parameter, or a right-click, opens its routes.</p>
 
   <section class="card" aria-label="Keyboard">
     <div class="keyboard" id="keyboard"></div>
@@ -469,7 +472,6 @@
     </div>
   </form>
 </dialog>
-<div class="armbar" id="armBar" hidden><span id="armText"></span><button class="btn" id="armCancel" type="button">Cancel</button></div>
 <script type="module" src="app.js"></script>
 </body>
 </html>

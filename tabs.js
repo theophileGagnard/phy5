@@ -303,6 +303,7 @@ function modTab()
     {
         const sfx = i === 1 ? '' : String (i);
         const s = el ('div', 'subsec');
+        s.dataset.source = [0, 6, 10, 11][i - 1];   // LFO, LFO 2, LFO 3, LFO 4 (numéros ModSourceType)
         const view = new LfoView (sfx);
         const wave = C (`modLfoWaveform${sfx}`, '');
         wave.root.querySelector ('.lbl').remove();
@@ -324,6 +325,7 @@ function modTab()
     for (const n of ['', '2'])
     {
         const s = el ('div', `subsec env${n || '1'}`);
+        s.dataset.source = n ? 8 : 4;   // Envelope 2 / Envelope
         const keys = { a: `modEnvAttack${n}`, d: `modEnvDecay${n}`, s: `modEnvSustain${n}`, r: `modEnvRelease${n}`,
                        ac: `modEnvAttackCurve${n}`, dc: `modEnvDecayCurve${n}`, rc: `modEnvReleaseCurve${n}` };
         [keys.ac, keys.dc, keys.rc].forEach (k => exposed.add (k));
@@ -338,6 +340,7 @@ function modTab()
     for (const n of ['', '2'])
     {
         const s = el ('div', `subsec fol${n || '1'}`);
+        s.dataset.source = n ? 9 : 5;   // Env Follower 2 / Env Follower
         s.append (sub (n ? `Env Follower ${n}` : 'Env Follower'),
                   row ('', K (`modEnvFollowerAttack${n}`, 'Rise'), K (`modEnvFollowerRelease${n}`, 'Fall'),
                            K (`modEnvFollowerGain${n}`, 'Gain', 'sec', { tip: 'Gain applied to the followed signal (dB). Raise it when the modulation is too weak.' })));
@@ -352,6 +355,7 @@ function modTab()
     for (const [title, prefix, source] of [['Velocity', 'modVelocity', 2], ['Pitch', 'modPitch', 3]])
     {
         const s = el ('div', 'subsec mapping-sec');
+        s.dataset.source = source;   // Velocity / Pitch
         const view = new MappingView (prefix, source);
         s.append (sub (title), row ('', view.root, K (`${prefix}InMin`, 'In Min'), K (`${prefix}InMax`, 'In Max'),
                                        K (`${prefix}Min`, 'Out Min'), K (`${prefix}Max`, 'Out Max'), K (`${prefix}Curve`, 'Curve')));
