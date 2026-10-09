@@ -128,8 +128,12 @@ function buildInstrument()
         if (tabsW > tabbar.getBoundingClientRect().width + 1) head.classList.add ('stacked');
         headerGap();
     };
-    new ResizeObserver (fitHeader).observe (head);
+    // à refaire quand l'en-tête, les onglets ou le bloc preset changent de taille (menu rempli, SAVE!! affiché) et quand
+    // une police finit de charger (Cinzel élargit les onglets sans changer la taille de la fenêtre)
+    const headerObserver = new ResizeObserver (fitHeader);
+    for (const e of [head, tabbar, head.querySelector ('.presetbox')]) headerObserver.observe (e);
     document.fonts?.ready.then (fitHeader);
+    document.fonts?.addEventListener?.('loadingdone', fitHeader);
     // traits entre familles : début de rangée (.rs) et première rangée (.fr), recalculés quand la mise en page change
     const markRows = (box) =>
     {
