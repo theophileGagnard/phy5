@@ -65,7 +65,7 @@ const ready = (async () =>
     $('preset').value = start.file;
     $('preset').disabled = false;   // choisir un preset (et le mesurer) ne demande pas de démarrer le son
     $('bench').disabled = false;
-    $('start').disabled = false;
+    $('play').disabled = false;
     await loadPreset();
     $('loading').remove();
 }) ();
@@ -269,12 +269,17 @@ $('mobile').onchange = () =>
 };
 
 // ---------------------------------------------------------------- son
-$('start').onclick = async () =>
+// Un seul bouton (« Play LE LUTH ») : le premier appui démarre l'audio puis le morceau. Une touche du clavier démarre
+// aussi l'audio (sans le morceau). Le morceau joue deux fois plus vite que son tempo d'origine (SONG_SPEED), sans que la
+// valeur affichée change.
+const SONG_SPEED = 2;
+let soundStarting = null, soundReady = null;
+const startSound = () => soundStarting ??= (async () =>
 {
-    $('start').disabled = true;
     try
     {
         await ready;
+        const isReady = new Promise ((res) => { soundReady = res; });
         ctx = new AudioContext ({ latencyHint: 'interactive' });
         await ctx.audioWorklet.addModule ('worklet.js');
         node = new AudioWorkletNode (ctx, 'rezo', { numberOfInputs: 0, outputChannelCount: [2],
@@ -285,16 +290,18 @@ $('start').onclick = async () =>
         store.sampleRate = ctx.sampleRate;
         invalidateAll();
         $('rate').textContent = `${(ctx.sampleRate / 1000).toFixed (1)} kHz`;
-        $('start').textContent = 'Sound on';
         $('mobile').disabled = true;
+        await isReady;
+        return true;
     }
     catch (err)
     {
         $('status').textContent = `Sound unavailable: ${err.message}. Sound needs https or localhost.`;
         $('status').classList.add ('warn');
-        $('start').disabled = false;
+        soundStarting = null;
+        return false;
     }
-};
+}) ();
 
 function onWorkletMessage (e)
 {
@@ -305,8 +312,8 @@ function onWorkletMessage (e)
         node.port.postMessage ({ type: 'state', text: presetText, ...fullState() });
         store.send = (msg) => node.port.postMessage (msg);
         store.send ({ type: 'song', events: song.events, bpm: song.bpm });
-        store.send ({ type: 'bpm', bpm: +$('tempo').value });
-        for (const id of ['play', 'tempo']) $(id).disabled = false;
+        store.send ({ type: 'bpm', bpm: +$('tempo').value * SONG_SPEED });
+        soundReady?.();
     }
     else if (m.type === 'meter')
     {
@@ -319,8 +326,12 @@ function onWorkletMessage (e)
         setLive (m);
 }
 
-$('play').onclick = () =>
+$('play').onclick = async () =>
 {
+    $('play').disabled = true;
+    const ok = await startSound();
+    $('play').disabled = false;
+    if (! ok) return;
     playing = ! playing;
     store.send ({ type: 'play', on: playing });
     $('play').textContent = playing ? 'Stop' : 'Play LE LUTH';
@@ -329,7 +340,7 @@ $('play').onclick = () =>
 $('tempo').oninput = () =>
 {
     $('tempoOut').textContent = `${$('tempo').value} BPM`;
-    store.send ({ type: 'bpm', bpm: +$('tempo').value });
+    store.send ({ type: 'bpm', bpm: +$('tempo').value * SONG_SPEED });
 };
 
 // ---------------------------------------------------------------- clavier (deux octaves, do3 à si4)
@@ -358,7 +369,7 @@ $('tempo').oninput = () =>
     }
 
     const held = new Set();
-    const down = (n, velocity = 0.8) => { if (held.has (n)) return; held.add (n); keyEl.get (n)?.classList.add ('down'); store.send ({ type: 'noteOn', note: n, velocity }); };
+    const down = (n, velocity = 0.8) => { startSound(); if (held.has (n)) return; held.add (n); keyEl.get (n)?.classList.add ('down'); store.send ({ type: 'noteOn', note: n, velocity }); };
     const up   = (n) => { if (! held.delete (n)) return; keyEl.get (n)?.classList.remove ('down'); store.send ({ type: 'noteOff', note: n }); };
 
     const pointerNote = new Map();
