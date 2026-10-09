@@ -1,0 +1,26 @@
+{
+  "format": "rezonathor-preset",
+  "version": 1,
+  "name": "Hollow Bell",
+  "params": {
+    "decay": 3.5,
+    "damp": 0.2,
+    "square": 0.9,
+    "release": 1200,
+    "numStrings": 2,
+    "detuneCents": 3,
+    "granularB": 0,
+    "resoFilterMix": 0.6,
+    "resoFilterMode": 1,
+    "resoFilterFreq": 3500,
+    "resoFilterWidth": 0.5,
+    "modEnvAttack": 2,
+    "modEnvDecay": 300,
+    "modEnvSustain": 0,
+    "modEnvRelease": 810,
+    "modEnvReleaseCurve": 0.3
+  },
+  "routes": [
+    { "source": "Envelope", "target": "bend", "depth": 0.03, "bipolar": false }
+  ]
+}

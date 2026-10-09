@@ -1,0 +1,132 @@
+[
+ {
+  "group": "factory",
+  "name": "Clean Pluck",
+  "file": "presets/factory-clean-pluck.json"
+ },
+ {
+  "group": "factory",
+  "name": "Dense Granular",
+  "file": "presets/factory-dense-granular.json"
+ },
+ {
+  "group": "factory",
+  "name": "Extreme Dispersion",
+  "file": "presets/factory-extreme-dispersion.json"
+ },
+ {
+  "group": "factory",
+  "name": "Ghost Piano",
+  "file": "presets/factory-ghost-piano.json"
+ },
+ {
+  "group": "factory",
+  "name": "Hollow Bell",
+  "file": "presets/factory-hollow-bell.json"
+ },
+ {
+  "group": "factory",
+  "name": "Init",
+  "file": "presets/factory-init.json"
+ },
+ {
+  "group": "factory",
+  "name": "Long Pad",
+  "file": "presets/factory-long-pad.json"
+ },
+ {
+  "group": "factory",
+  "name": "Metallic Resonance",
+  "file": "presets/factory-metallic-resonance.json"
+ },
+ {
+  "group": "user",
+  "name": "Cheap epinette",
+  "file": "presets/user-cheap-epinette.json"
+ },
+ {
+  "group": "user",
+  "name": "EdShe",
+  "file": "presets/user-edshe.json"
+ },
+ {
+  "group": "user",
+  "name": "EPIC PADS DIRTY",
+  "file": "presets/user-epic-pads-dirty.json"
+ },
+ {
+  "group": "user",
+  "name": "EPIC PADS DIRTY2",
+  "file": "presets/user-epic-pads-dirty2.json"
+ },
+ {
+  "group": "user",
+  "name": "FilterBong",
+  "file": "presets/user-filterbong.json"
+ },
+ {
+  "group": "user",
+  "name": "Glockenspiel",
+  "file": "presets/user-glockenspiel.json"
+ },
+ {
+  "group": "user",
+  "name": "LASER",
+  "file": "presets/user-laser.json"
+ },
+ {
+  "group": "user",
+  "name": "MANDOLINAA",
+  "file": "presets/user-mandolinaa.json"
+ },
+ {
+  "group": "user",
+  "name": "NotAPiano",
+  "file": "presets/user-notapiano.json"
+ },
+ {
+  "group": "user",
+  "name": "Old Luth",
+  "file": "presets/user-old-luth.json"
+ },
+ {
+  "group": "user",
+  "name": "Pad - Dramatic",
+  "file": "presets/user-pad-dramatic.json"
+ },
+ {
+  "group": "user",
+  "name": "PercLead - Jungle Doum",
+  "file": "presets/user-perclead-jungle-doum.json"
+ },
+ {
+  "group": "user",
+  "name": "PHY5",
+  "file": "presets/user-phy5.json"
+ },
+ {
+  "group": "user",
+  "name": "PHY51",
+  "file": "presets/user-phy51.json"
+ },
+ {
+  "group": "user",
+  "name": "PHY52",
+  "file": "presets/user-phy52.json"
+ },
+ {
+  "group": "user",
+  "name": "Steelpan",
+  "file": "presets/user-steelpan.json"
+ },
+ {
+  "group": "user",
+  "name": "Tremolo picasso",
+  "file": "presets/user-tremolo-picasso.json"
+ },
+ {
+  "group": "user",
+  "name": "Xylo",
+  "file": "presets/user-xylo.json"
+ }
+]

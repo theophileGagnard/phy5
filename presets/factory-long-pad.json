@@ -1,0 +1,30 @@
+{
+  "format": "rezonathor-preset",
+  "version": 1,
+  "name": "Long Pad",
+  "params": {
+    "decay": 4.5,
+    "damp": 0.55,
+    "release": 2000,
+    "numStrings": 3,
+    "detuneCents": 14,
+    "granularB": 0.6,
+    "granularH": 0.7,
+    "granularSpread": 0.8,
+    "granularWindowMs": 200,
+    "gateMs": 1500,
+    "gateMode": 1,
+    "resoFilterMix": 0.4,
+    "resoFilterFreq": 2500,
+    "resoFilterWidth": 0.6,
+    "dryWet": 0.85,
+    "modLfoRate": 0.15,
+    "modLfoWaveform": 0,
+    "modLfoRate2": 0.3,
+    "modLfoWaveform2": 4
+  },
+  "routes": [
+    { "source": "LFO", "target": "resoFilterFreq", "depth": 0.2, "bipolar": false },
+    { "source": "LFO2", "target": "granularSpread", "depth": 0.2, "bipolar": false }
+  ]
+}

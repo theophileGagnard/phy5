@@ -1,0 +1,28 @@
+{
+  "format": "rezonathor-preset",
+  "version": 1,
+  "name": "Extreme Dispersion",
+  "params": {
+    "decay": 2.5,
+    "damp": 0.1,
+    "blend": 0.3,
+    "dephasage": 0.25,
+    "square": 0.5,
+    "release": 1500,
+    "granularB": 0,
+    "outputGain": -4,
+    "resoFilterMix": 1,
+    "resoFilterMode": 2,
+    "resoFilterFreq": 600,
+    "resoFilterWidth": 1,
+    "outputFilterMix": 0.5,
+    "outputFilterMode": 2,
+    "outputFilterFreq": 3000,
+    "outputFilterWidth": 0.9,
+    "modLfoRate": 0.4,
+    "modLfoWaveform": 1
+  },
+  "routes": [
+    { "source": "LFO", "target": "resoFilterFreq", "depth": 0.4, "bipolar": false }
+  ]
+}

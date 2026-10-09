@@ -1,0 +1,30 @@
+{
+  "format": "rezonathor-preset",
+  "version": 1,
+  "name": "Dense Granular",
+  "params": {
+    "decay": 2,
+    "damp": 0.4,
+    "release": 1200,
+    "numStrings": 2,
+    "detuneCents": 10,
+    "granularB": 1,
+    "granularF": 0.6,
+    "granularG": 120,
+    "granularH": 0.88,
+    "granularSpread": 1,
+    "granularWindowMs": 30,
+    "granularPitchSemis": 12,
+    "outputGain": -3,
+    "granFilterMix": 0.6,
+    "granFilterFreq": 2000,
+    "granFilterWidth": 0.6,
+    "dryWet": 0.9,
+    "modLfoRate2": 0.5,
+    "modLfoWaveform2": 4
+  },
+  "routes": [
+    { "source": "LFO2", "target": "granularG", "depth": 0.15, "bipolar": false },
+    { "source": "EnvelopeFollower", "target": "granularF", "depth": 0.3, "bipolar": false }
+  ]
+}

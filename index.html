@@ -1,0 +1,469 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Rezonathor</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=EB+Garamond:ital,wght@0,400;0,600;1,400&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+  /* Interface du plugin (Source/StyleTokens.h, RezonathorLookAndFeel.h) : papier F2E8D0, quadrillage DDCFA0, encre 2E2A20,
+     encre douce 5A5340, encre pâle 8A8168, trait B6AC92, rouge sépia 9C3526 (valeurs, tracés), bleu-vert 2F7D8A
+     (modulation en direct), survol E4B53A. Police Cinzel (une seule graisse, comme la police intégrée au plugin).
+     Le papier texturé (--paper-tex) et les cadres au crayon (--f-*) sont générés une fois par thème par sketch.js.
+     Thème sombre « encre de nuit » : mêmes rôles, papier sombre et encre claire. */
+  :root {
+    --paper: #f2e8d0;  --grid: #ddcfa0;  --wash: rgba(242, 232, 208, 0.25);
+    --ink: #2e2a20;    --ink-soft: #5a5340;  --ink-faint: #8a8168;  --line: #b6ac92;
+    --warm: #9c3526;   --cool: #2f7d8a;  --hover: #e4b53a;  --warn: #b0432f;
+    --face: rgba(242, 232, 208, 0.55);  --track: rgba(221, 207, 160, 0.9);  --vignette: rgba(46, 42, 32, 0.07);
+    --key: #f8f2e2;    --key-black: #2e2a20;  --key-down: #e5c2b4;  --shadow: rgba(46, 42, 32, 0.18);  --on-ink: #f7efdc;
+    --font-display: "Cinzel", "Trajan Pro", Georgia, serif;
+    --font-body: "EB Garamond", Garamond, Georgia, serif;
+    --font-data: "IBM Plex Mono", ui-monospace, Menlo, monospace;
+    color-scheme: light;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --paper: #1b1812;  --grid: #3a3326;  --wash: rgba(236, 226, 200, 0.04);
+      --ink: #ece2c8;    --ink-soft: #c2b797;  --ink-faint: #8d836a;  --line: #4c4535;
+      --warm: #e0806a;   --cool: #6bbac6;  --hover: #e4b53a;  --warn: #e07a62;
+      --face: rgba(43, 38, 29, 0.7);  --track: rgba(76, 69, 53, 0.9);  --vignette: rgba(0, 0, 0, 0.3);
+      --key: #e9dfc6;    --key-black: #0e0c09;  --key-down: #8d4636;  --shadow: rgba(0, 0, 0, 0.5);  --on-ink: #1b1812;
+      color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --paper: #1b1812;  --grid: #3a3326;  --wash: rgba(236, 226, 200, 0.04);
+    --ink: #ece2c8;    --ink-soft: #c2b797;  --ink-faint: #8d836a;  --line: #4c4535;
+    --warm: #e0806a;   --cool: #6bbac6;  --hover: #e4b53a;  --warn: #e07a62;
+    --face: rgba(43, 38, 29, 0.7);  --track: rgba(76, 69, 53, 0.9);  --vignette: rgba(0, 0, 0, 0.3);
+    --key: #e9dfc6;    --key-black: #0e0c09;  --key-down: #8d4636;  --shadow: rgba(0, 0, 0, 0.5);  --on-ink: #1b1812;
+    color-scheme: dark;
+  }
+
+  * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
+  html { -webkit-text-size-adjust: 100%; }
+  /* papier du plugin : aplat + quadrillage CSS tant que la texture n'est pas prête, puis la tuile pré-rendue */
+  body {
+    margin: 0; color: var(--ink); font: 17px/1.5 var(--font-body);
+    background-color: var(--paper);
+    background-image: linear-gradient(var(--grid) 1px, transparent 1px), linear-gradient(90deg, var(--grid) 1px, transparent 1px);
+    background-size: 22px 22px;
+    overflow-x: hidden;
+  }
+  html.paper body, html.paper .route-pop { background-image: var(--paper-tex); background-size: 528px 528px; }
+  main { max-width: 932px; margin: 0 auto; padding-inline: 16px; padding-block: 24px 64px; display: grid; gap: 18px; min-width: 0; }
+  button, select, input { font: inherit; color: inherit; }
+  :focus-visible { outline: 2px solid var(--cool); outline-offset: 2px; }
+
+  /* cadres au crayon : image SVG étirée (le trait garde son épaisseur) */
+  .framed { background-repeat: no-repeat; background-position: 0 0; background-size: 100% 100%; }
+
+  /* ---------------- en-tête de la page et barre du son (textes de la page : en français) */
+  .intro { display: grid; gap: 2px; }
+  h1 { font: 400 2rem/1.1 var(--font-display); letter-spacing: .04em; margin: 0; text-wrap: balance; }
+  .lead { margin: 0; color: var(--ink-soft); font-style: italic; max-width: 64ch; }
+  .card { background: var(--f-card) 0 0 / 100% 100% no-repeat; padding: 14px 18px; display: grid; gap: 10px; min-width: 0; }
+  .bar { display: flex; flex-wrap: wrap; gap: 10px 14px; align-items: center; min-width: 0; }
+  .btn { font: 400 15px/1 var(--font-display); padding: 9px 16px; min-height: 36px; border: 0; cursor: pointer;
+         background: var(--f-btn) 0 0 / 100% 100% no-repeat; }
+  .btn:hover:not(:disabled) { background-image: var(--f-btn-hover); }
+  .btn.primary, .btn.playing { background-image: var(--f-btn-on); }
+  .btn:disabled { opacity: .4; cursor: default; }
+  .tempo { display: flex; align-items: center; gap: 10px; flex: 1 1 220px; min-width: 0; font: 400 14px var(--font-display); }
+  .tempo input { flex: 1; min-width: 0; accent-color: var(--warm); }
+  .tempo output { font: 500 .82rem var(--font-data); color: var(--warm); min-width: 64px; text-align: right; }
+  .meters { display: flex; flex-wrap: wrap; gap: 6px 28px; }
+  .meters span { font: 400 .72rem var(--font-display); letter-spacing: .06em; color: var(--ink-soft); }
+  .meters b { display: block; font: 500 1.15rem var(--font-data); font-variant-numeric: tabular-nums; }
+  .note { margin: 0; color: var(--ink-soft); font-size: .92rem; max-width: 72ch; }
+  .note.warn { color: var(--warm); }
+  .check { display: flex; gap: 8px; align-items: center; color: var(--ink-soft); font-size: .92rem; }
+  .check input { accent-color: var(--warm); }
+
+  /* ---------------- la fenêtre de l'instrument : même papier, cadre au crayon, vignettage doux sur les bords */
+  .window { position: relative; isolation: isolate; background: var(--f-window) 0 0 / 100% 100% no-repeat; min-width: 0; }
+  .window::before { content: ""; position: absolute; inset: 0; z-index: -1; pointer-events: none;
+                    background: radial-gradient(ellipse at center, transparent 45%, var(--vignette) 100%); }
+  /* en-tête sur une ligne (63 px) : [PHY5 / version] [onglets] [preset / voix], trait de crayon interrompu sous l'onglet actif */
+  .whead { position: relative; display: grid; grid-template-columns: 120px minmax(0, 1fr) auto; grid-template-areas: "brand tabs preset";
+           align-items: stretch; gap: 0 10px; padding: 0 10px 0 14px; min-height: 63px; }
+  .whead::before, .whead::after { content: ""; position: absolute; bottom: -1px; height: 4px; pointer-events: none;
+                                  background: var(--f-rule) 0 0 / 100% 100% no-repeat; }
+  .whead::before { left: 0; width: var(--gap-l, 100%); }
+  .whead::after { left: var(--gap-r, 100%); right: 0; background-position: 100% 0; }
+  .brand { grid-area: brand; align-self: center; padding-top: 2px; }
+  .brand .name { font: 400 30px/1 var(--font-display); }
+  .brand .ver { font: 400 12px var(--font-display); color: var(--ink-soft); margin-top: 6px; }
+  .tabs { grid-area: tabs; display: flex; gap: 0; align-self: stretch; min-width: 0; }
+  .tab { position: relative; font: 400 19px var(--font-display); color: var(--ink-soft); padding: 0 17px; white-space: nowrap; cursor: pointer;
+         border: 0; background: var(--f-tab) 0 4px / 100% calc(100% - 10px) no-repeat; min-height: 63px; }
+  .tab:hover { background-image: var(--f-tab-hover); }
+  .tab[aria-selected="true"] { color: var(--ink); background: var(--f-tab-on) 0 2px / 100% calc(100% - 1px) no-repeat; }
+  .tab[aria-selected="true"]::after { content: ""; position: absolute; left: 14px; right: 14px; bottom: 6px; height: 4px;
+                                      background: var(--f-underline) 0 0 / 100% 100% no-repeat; }
+  .presetbox { grid-area: preset; display: grid; align-content: center; gap: 4px; justify-items: end; min-width: 0; padding: 6px 0; }
+  .presetbox .select select { width: 230px; max-width: 100%; height: 30px; font-size: 14px; }
+  .voices { font: 400 12px var(--font-display); color: var(--warm); }
+  .presetrow { display: flex; gap: 6px; align-items: center; min-width: 0; max-width: 100%; }
+  .btn.small { height: 30px; min-height: 30px; padding: 0 14px; font-size: 14px; }
+
+  /* ---------------- fenêtre « Save » (compte + preset partagé) */
+  .savedlg { width: min(420px, calc(100vw - 32px)); padding: 18px 20px; border: 0; color: var(--ink);
+             background: var(--paper) var(--f-card) 0 0 / 100% 100% no-repeat; box-shadow: 0 10px 30px var(--shadow); }
+  html.paper .savedlg { background-image: var(--f-card), var(--paper-tex); background-size: 100% 100%, 528px 528px; }
+  .savedlg::backdrop { background: rgba(20, 18, 12, 0.35); }
+  .savedlg form { display: grid; gap: 10px; }
+  .savedlg h3 { margin: 0; font: 400 20px var(--font-display); }
+  .savedlg #accountPart, .savedlg #presetPart { display: grid; gap: 10px; }
+  .field { display: grid; gap: 3px; font: 400 13px var(--font-display); }
+  .field input { font: 16px var(--font-body); padding: 7px 9px; border: 1px solid var(--ink-faint); border-radius: 3px; background: var(--wash); color: var(--ink); }
+  .field input:focus { outline: 1.5px solid var(--warm); }
+  .linkbtn { border: 0; background: none; padding: 4px 0; color: var(--cool); font: 400 14px var(--font-body); text-decoration: underline; cursor: pointer; justify-self: start; }
+  .dlgbar { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: center; }
+  .dlgbar .spacer { flex: 1; }
+  #saveError:empty { display: none; }
+
+  .pages { padding: 20px 12px 18px; min-width: 0; }
+  /* familles en flux (ordre du signal), traits de crayon entre elles : vertical dans une rangée, horizontal entre deux rangées.
+     Le trait de la première famille d'une rangée (ou de la première rangée) sort de la page et est coupé (overflow: clip). */
+  .page { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 34px 24px; overflow: clip; min-width: 0; }
+  /* app.js marque chaque famille : .rs = début de rangée, .fr = première rangée. Trait vertical à gauche des familles qui ne
+     commencent pas une rangée ; trait horizontal pleine largeur au-dessus de chaque nouvelle rangée (coupé au bord). */
+  .family { position: relative; display: flex; flex-direction: column; align-items: center; gap: 4px; min-width: 0; max-width: 100%; }
+  .family::before, .stack::before { content: ""; position: absolute; left: -14px; top: 0; bottom: 4px; width: 4px;
+                                    background: var(--f-vsep) 0 0 / 100% 100% no-repeat; }
+  .family::after, .stack::after { content: ""; position: absolute; top: -19px; left: -12px; right: -3000px; height: 4px;
+                                  background: var(--f-hsep) 0 0 / 100% 100% no-repeat; }
+  .family.rs::before, .stack.rs::before, .family:not(.rs)::after, .stack:not(.rs)::after, .family.fr::after, .stack.fr::after { display: none; }
+  .family.wide { flex: 1 1 100%; align-items: stretch; }
+  .stack { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 34px 24px; flex: 1 1 400px; min-width: 0; position: relative; }
+  .ftitle { font: 400 20px/1.25 var(--font-display); margin: 0 0 4px; text-align: center; }
+  .stitle { font: 400 20px/1.2 var(--font-display); color: var(--warm); margin: 0; }
+  .caption { margin: 0; font: 400 10px var(--font-display); color: var(--ink); text-align: center; }
+  .row { display: flex; flex-wrap: wrap; justify-content: center; align-items: flex-start; gap: 6px 0; min-width: 0; max-width: 100%; }
+  .row.top { align-items: center; gap: 6px 12px; }
+  .row.cols { align-items: flex-start; gap: 0; }
+  .col { display: grid; justify-items: center; gap: 6px; }
+  .row.tert { gap: 4px 18px; }
+  .row.type { align-items: flex-start; flex-wrap: nowrap; gap: 14px; }
+  .row.pair { justify-content: space-around; width: 100%; }
+  .row.opts { justify-content: flex-start; gap: 4px 40px; }
+  .schem { display: grid; gap: 6px; flex: 1 1 240px; min-width: 0; }
+  .family.build { flex: 1 1 380px; }
+  .family.build .row.type { align-self: stretch; justify-content: flex-start; }
+  .stack > .midi { flex: 1 1 100%; }
+
+  /* ---------------- bouton rotatif (drawRotarySlider) : primaire 120 x 110, secondaire 90 x 80, case 80 x 20 */
+  .ctl { position: relative; min-width: 0; }
+  .knob { display: grid; justify-items: center; align-content: start; gap: 2px; min-width: var(--kw); padding: 0 4px 4px; border-radius: 6px; }
+  .knob.prim { --kw: 120px; --dial: 86px; }
+  .knob.sec { --kw: 90px; --dial: 56px; }
+  .lbl { font: 400 13px/20px var(--font-display); text-align: center; white-space: nowrap; color: var(--ink); }
+  .knob.prim .lbl, .combo.primary .lbl { font-size: 16px; }
+  .dial { position: relative; width: var(--dial); height: var(--dial); cursor: ns-resize; touch-action: none; border-radius: 50%; }
+  .dial svg { display: block; width: 100%; height: 100%; overflow: visible; }
+  .dial svg * { vector-effect: non-scaling-stroke; }
+  .tick { stroke: var(--ink); stroke-opacity: .5; stroke-width: .7px; stroke-linecap: round; }
+  .tick.major { stroke-opacity: .75; stroke-width: 1.1px; }
+  .face { fill: var(--face); }
+  .shade line { stroke: var(--ink); stroke-opacity: .28; stroke-width: .7px; }
+  .rim { fill: none; stroke: var(--ink); stroke-opacity: .85; stroke-width: 1px; }
+  .rim.ghost { stroke-opacity: .3; stroke-width: .7px; }
+  .value-arc { fill: none; stroke: var(--warm); stroke-width: 1.5px; stroke-linecap: round; }
+  .value-arc.g1 { stroke-opacity: .55; stroke-width: 1.05px; }
+  .value-arc.g2 { stroke-opacity: .35; stroke-width: .85px; }
+  .needle { fill: none; stroke: var(--ink); stroke-width: 1.4px; stroke-linecap: round; }
+  .hub { fill: var(--ink); }
+  .knob.sec .tick { stroke-width: .55px; }
+  .knob.sec .tick.major { stroke-width: .85px; }
+  .knob.sec .rim { stroke-width: .8px; }
+  .knob.sec .value-arc { stroke-width: 1.15px; }
+  .knob.sec .needle { stroke-width: 1.1px; }
+  .mod-range { fill: none; stroke: var(--cool); stroke-opacity: .55; stroke-width: 2.6px; stroke-linecap: round; }
+  .mod-dot { fill: var(--cool); stroke: var(--ink); stroke-width: .9px; }
+  .dial .mid { position: absolute; top: -12px; left: 0; right: 0; text-align: center; font: 400 10px var(--font-display); color: var(--ink-faint); pointer-events: none; }
+  .dial .end { position: absolute; bottom: -4px; font: 400 10px var(--font-display); color: var(--ink-faint); pointer-events: none; }
+  .dial .end.lo { right: 84%; }
+  .dial .end.hi { left: 84%; }
+  .knob:has(.mid) .lbl { margin-bottom: 10px; }
+  .knob:has(.end) { padding-inline: 20px; }
+  /* case de valeur (drawLabel) */
+  .val { width: 80px; max-width: 100%; height: 20px; text-align: center; font: 400 13px/20px var(--font-display); color: var(--ink);
+         background: var(--f-val) 0 0 / 100% 100% no-repeat; border: 0; border-radius: 0; padding: 0 3px; margin-top: 4px; }
+  .val:focus { outline: 1.5px solid var(--warm); outline-offset: 0; }
+  .dim { opacity: .45; }
+  .modded { outline: 1.4px solid var(--cool); outline-offset: -1px; }
+  .drop-hover { outline: 2.5px solid var(--hover) !important; outline-offset: -1px; }
+  .arming [data-mod-key] { outline: 1.5px dashed var(--hover); outline-offset: -1px; cursor: copy; }
+  .mod-badge { display: none; position: absolute; top: 18px; right: 0; width: 20px; height: 20px; padding: 0; border: 0; border-radius: 50%;
+               background: var(--cool); color: var(--on-ink); font: 700 13px/20px var(--font-data); cursor: pointer; }
+  .modded > .mod-badge { display: block; }
+
+  /* ---------------- curseur horizontal (Mix, Smooth, Rate) : piste papier, part réglée en encre pâle, pouce rouge */
+  .hs { display: grid; grid-template-columns: auto minmax(60px, 1fr) auto; align-items: center; gap: 8px; width: 100%; padding: 1px 2px; border-radius: 4px; }
+  .hs.small { width: auto; grid-template-columns: auto 92px auto; gap: 6px; }
+  .hs.small .lbl { font-size: 10px; color: var(--ink); }
+  .hs.small .val { width: 50px; font-size: 9px; margin: 0; padding: 0 1px; }
+  .hs .val { width: 54px; margin: 0; font-size: 10px; padding: 0 1px; }
+  .hs.nolabel .lbl { display: none; }
+  .hs.nolabel { grid-template-columns: minmax(60px, 1fr) auto; }
+  .track { position: relative; height: 22px; cursor: pointer; touch-action: none; }
+  .track::before { content: ""; position: absolute; left: 0; right: 0; top: 8.5px; height: 5px; border-radius: 3px; background: var(--track); }
+  .track .fill { position: absolute; left: 0; top: 8.5px; height: 5px; border-radius: 3px; background: var(--ink-faint); }
+  .track .thumb { position: absolute; top: 5px; width: 12px; height: 12px; margin-left: -6px; border-radius: 50%; background: var(--warm); }
+  .track .mrange { position: absolute; top: 4px; height: 14px; opacity: .5;
+                   background: repeating-linear-gradient(-45deg, var(--cool) 0 1px, transparent 1px 4px); }
+  .track .mline { position: absolute; top: 2px; width: 3px; height: 18px; margin-left: -1.5px; background: var(--cool); }
+  .hs > .mod-badge { top: -10px; }
+
+  /* ---------------- menus (drawComboBox) et cases à cocher (drawToggleButton) */
+  .combo { display: grid; justify-items: center; gap: 2px; }
+  .select { position: relative; display: inline-block; max-width: 100%; }
+  .select::after { content: ""; position: absolute; right: 9px; top: 50%; width: 11px; height: 7px; margin-top: -3.5px; pointer-events: none;
+                   background: var(--ink);
+                   -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 11 7'%3E%3Cpath d='M1 1.5L5.5 6L10 1' fill='none' stroke='black' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center / contain no-repeat;
+                           mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 11 7'%3E%3Cpath d='M1 1.5L5.5 6L10 1' fill='none' stroke='black' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center / contain no-repeat; }
+  .select select { appearance: none; -webkit-appearance: none; width: 110px; min-width: 110px; max-width: 100%; height: 24px; font: 400 13px var(--font-display);
+                   background: var(--f-combo) 0 0 / 100% 100% no-repeat; border: 0; border-radius: 0; padding: 0 26px 0 7px; cursor: pointer; }
+  .select select:focus-visible { background-image: var(--f-combo-focus); outline: none; }
+  .select:has(select:disabled) { opacity: .5; }
+  select option, select optgroup { background: var(--paper); color: var(--ink); }
+  .toggle { display: inline-flex; align-items: center; gap: 8px; font: 400 14px var(--font-display); cursor: pointer; padding: 3px 2px; min-height: 26px; }
+  .toggle input { appearance: none; -webkit-appearance: none; flex: none; width: 18px; height: 18px; margin: 0 0 0 2px; border: 0;
+                  background: var(--f-check) 0 0 / 100% 100% no-repeat; cursor: pointer; }
+  .toggle input:checked { background-image: var(--f-check-on); }
+  .toggle input:disabled { opacity: .5; }
+  .toggle.small { font-size: 12px; gap: 5px; }
+  .toggle.small input { width: 15px; height: 15px; }
+
+  /* ---------------- visualiseurs (canvas) */
+  .view { position: relative; min-width: 0; }
+  .view canvas { display: block; width: 100%; height: 100%; }
+  .filter { width: 200px; }
+  .filter .hs { padding-right: 0; }
+  .filter > .combo, .filter > .combo .select, .filter > .combo select { width: 100%; justify-items: stretch; }
+  .xypad { width: 100%; cursor: crosshair; }
+  .exciter .env { width: 250px; flex: 1 1 200px; max-width: 250px; }
+  .exciter .combo { justify-items: center; }
+  .schematic { width: 100%; }
+  .sat { width: 120px; }
+  .lfo { width: 100%; }
+  .mapping { width: 190px; flex: none; }
+  .machine { flex-direction: row; }
+  .machine .row { gap: 6px 26px; }
+
+  /* onglet Mod */
+  .subgrid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 400px), 1fr)); gap: 14px 26px; }
+  .subsec { display: grid; gap: 4px; align-content: start; min-width: 0; }
+  .subsec > .row { justify-content: flex-start; }
+  .subhead { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+  .subsec .side { display: grid; gap: 6px; width: 124px; align-self: center; }
+  .subsec .side .combo { justify-items: stretch; }
+  .subsec .side .select, .subsec .side select { width: 100%; }
+  .subsec .env { width: 100%; }
+  .subhead .select select { width: 178px; }
+  /* comme le plugin : Env Follower sous Envelope 1, les instances 2 à droite */
+  @media (min-width: 701px) {
+    .subgrid:has(> .env1) { grid-template-columns: 1fr 1fr; }
+    .env1 { grid-area: 1 / 1; }  .env2 { grid-area: 1 / 2; }  .fol1 { grid-area: 2 / 1; }  .fol2 { grid-area: 2 / 2; }
+  }
+  .mapping-sec + .mapping-sec { margin-top: 8px; }
+  .route-list { display: grid; gap: 6px; }
+
+  /* ---------------- routes de modulation (propres à la page) */
+  .route-row { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(80px, 1fr) 42px auto 28px; align-items: center; gap: 4px 10px;
+               font: 400 13px var(--font-display); }
+  .route-row input[type=range] { width: 100%; accent-color: var(--cool); }
+  .route-row output { font: 500 12px var(--font-data); color: var(--cool); text-align: right; }
+  .route-src { overflow-wrap: anywhere; }
+  .route-del { width: 26px; height: 26px; padding: 0; border: 0; background: var(--f-tile-btn) 0 0 / 100% 100% no-repeat; cursor: pointer; font: 400 14px/1 var(--font-display); }
+  .route-pop { position: absolute; z-index: 40; background-color: var(--paper); border: 1.5px solid var(--ink);
+               border-radius: 3px; padding: 10px 12px; box-shadow: 0 6px 18px var(--shadow); display: grid; gap: 8px; }
+  .route-pop h4 { margin: 0; font: 400 14px var(--font-display); }
+  .route-pop .route-row { grid-template-columns: minmax(0, 1fr) minmax(70px, 1.3fr) 40px auto 28px; }
+
+  /* ---------------- panneau des sources de modulation (bas de la fenêtre) : même papier, trait de crayon au-dessus */
+  .modpanel { position: relative; padding: 6px 10px 10px; }
+  .modpanel::before { content: ""; position: absolute; left: 0; right: 0; top: -2px; height: 4px; background: var(--f-rule) 0 0 / 100% 100% no-repeat; }
+  .modpanel-label { margin: 0 0 4px; font: 400 11px var(--font-display); color: var(--ink-faint); }
+  .tiles { display: flex; flex-wrap: wrap; gap: 8px 10px; }
+  .tile { position: relative; flex: 1 1 120px; height: 36px; padding: 4px 22px 0; touch-action: none; user-select: none; -webkit-user-select: none;
+          background: var(--f-tile) 0 0 / 100% 100% no-repeat,
+                      repeating-linear-gradient(-45deg, transparent 0 4px, color-mix(in srgb, var(--ink) 16%, transparent) 4px 4.8px) 2px 2px / calc(100% - 4px) calc(100% - 4px) no-repeat;
+          font: 400 11px/14px var(--font-display); text-align: center; cursor: grab; }
+  .tile.note { background: var(--f-tile-note) 0 0 / 100% 100% no-repeat,
+                           repeating-linear-gradient(-45deg, transparent 0 4px, color-mix(in srgb, var(--cool) 45%, transparent) 4px 4.8px) 2px 2px / calc(100% - 4px) calc(100% - 4px) no-repeat; }
+  .tile:not(.note) + .tile.note { margin-left: 8px; }
+  .tile:not(.note) + .tile.note::before { content: ""; position: absolute; left: -14px; top: -4px; bottom: -2px; width: 1px; background: var(--line); }
+  .tile-name { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .tile-meter { position: absolute; left: 8px; right: 8px; bottom: 7px; height: 7px; border-left: 1px solid var(--ink); border-right: 1px solid var(--ink); opacity: .8; }
+  .tile-meter::before { content: ""; position: absolute; left: 0; right: 0; top: 3px; height: 1px; background: var(--ink); }
+  .tile-fill { position: absolute; left: 0; right: 0; top: 2.4px; height: 2.2px; border-radius: 1px; background: var(--warm); transform: scaleX(0); transform-origin: left; }
+  .tile-btn { position: absolute; top: 3px; right: 3px; width: 18px; height: 16px; padding: 0; border: 0; background: var(--f-tile-btn) 0 0 / 100% 100% no-repeat;
+              font: 400 11px/16px var(--font-display); cursor: pointer; }
+  .tile.armed { outline: 2.5px solid var(--hover); outline-offset: 1px; }
+  .tile-ghost { position: fixed; top: 0; left: 0; z-index: 50; pointer-events: none; padding: 6px 12px; border: 1.3px solid var(--ink); border-radius: 2px;
+                background: var(--paper); font: 400 11px var(--font-display); box-shadow: 0 4px 12px var(--shadow); }
+  .armbar { position: fixed; left: 0; right: 0; bottom: 0; z-index: 45; display: flex; gap: 12px; align-items: center; justify-content: center; flex-wrap: wrap;
+            padding: 10px 16px; background: var(--ink); color: var(--on-ink); font: 400 14px var(--font-display); }
+  .armbar .btn { color: var(--ink); padding: 6px 12px; }
+
+  /* ---------------- clavier */
+  .keyboard { position: relative; height: 120px; display: flex; user-select: none; -webkit-user-select: none; touch-action: none; }
+  .key { flex: 1; background: var(--key); border: 1px solid var(--ink-faint); border-left-width: 0; border-radius: 0 0 3px 3px; display: flex;
+         align-items: flex-end; justify-content: center; padding-bottom: 6px; font: .7rem var(--font-data); color: var(--ink-soft); }
+  .key:first-child { border-left-width: 1px; }
+  .key.black { position: absolute; width: calc(100% / 14 * .62); height: 62%; background: var(--key-black); border: 1px solid var(--key-black); z-index: 2; }
+  .key.down { background: var(--key-down); }
+  .key.black.down { background: var(--warm); }
+
+  /* ---------------- tous les paramètres, banc */
+  details summary { cursor: pointer; font: 400 15px var(--font-display); }
+  details[open] summary { padding-bottom: 8px; margin-bottom: 4px; background: var(--f-hsep) 0 100% / 100% 4px no-repeat; }
+  h2 { font: 400 15px/1 var(--font-display); margin: 0; padding-bottom: 10px; background: var(--f-hsep) 0 100% / 100% 4px no-repeat; }
+  .psec { font: 400 13px var(--font-display); color: var(--warm); margin: 18px 0 6px; }
+  .prow { display: grid; grid-template-columns: minmax(120px, 220px) minmax(0, 1fr) 96px; gap: 12px; align-items: center; margin: 6px 0; }
+  .prow label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .prow output { text-align: right; font: 500 .82rem var(--font-data); font-variant-numeric: tabular-nums; color: var(--warm); }
+  .prow input[type=range] { width: 100%; accent-color: var(--warm); }
+  .prow input[type=checkbox] { accent-color: var(--warm); justify-self: start; }
+  .prow select { padding: 6px 8px; border-radius: 3px; border: 1px solid var(--ink-faint); background: transparent; max-width: 100%; min-width: 0; }
+  .filterbox { width: 100%; padding: 8px 10px; border-radius: 3px; border: 1px solid var(--ink-faint); background: var(--wash); margin: 12px 0 4px; }
+  footer { display: flex; justify-content: flex-end; }
+  .loading { font-style: italic; color: var(--ink-soft); margin: 0; padding: 24px 12px; }
+
+  /* ---------------- téléphone (375-412 px) : une famille par ligne, onglets en largeur égale */
+  @media (max-width: 700px) {
+    h1 { font-size: 1.6rem; }
+    .card { padding: 12px 14px; }
+    .whead { grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "brand preset" "tabs tabs"; padding: 6px 8px 0 10px; gap: 2px 10px; }
+    .brand .name { font-size: 26px; }
+    .brand .ver { margin-top: 3px; }
+    .presetbox .select select { width: 160px; }
+    .tabs { margin: 0 -2px; }
+    .tab { flex: 1 1 auto; min-width: 0; padding: 0 2px; font-size: 14px; min-height: 52px; }
+    .tab[aria-selected="true"]::after { left: 6px; right: 6px; bottom: 5px; }
+    .pages { padding: 18px 6px 16px; }
+    .family { flex: 1 1 100%; }
+    .stack { flex-basis: 100%; }
+    .knob.prim { --kw: 108px; --dial: 78px; }
+    .knob.prim .lbl { font-size: 15px; }
+    .knob.sec { --kw: 84px; --dial: 54px; }
+    .filter { width: 100%; }
+    .filter .xypad { height: 140px !important; }
+    .exciter .env { max-width: none; flex-basis: 100%; }
+    .row.type { flex-wrap: wrap; justify-content: center; }
+    .schem { flex-basis: 100%; }
+    .mapping { width: 100%; }
+    .subsec .side { width: 100%; }
+    .tile { flex-basis: 96px; padding-inline: 20px; }
+    .tile:not(.note) + .tile.note { margin-left: 0; }
+    .tile:not(.note) + .tile.note::before { display: none; }
+    .prow { grid-template-columns: minmax(0, 1fr) 84px; gap: 4px 10px; }
+    .prow input, .prow select { grid-column: 1 / -1; grid-row: 2; }
+    .keyboard { height: 104px; }
+    .route-row { grid-template-columns: minmax(0, 1fr) 42px 28px; }
+    .route-row input[type=range] { grid-column: 1 / -1; grid-row: 2; }
+    .route-row .toggle { grid-column: 1 / -1; grid-row: 3; }
+  }
+  @media (pointer: coarse) {
+    .mod-badge { width: 26px; height: 26px; line-height: 26px; }
+    .tile-btn { width: 24px; height: 22px; line-height: 22px; top: 2px; right: 2px; }
+    .tile { height: 44px; padding-top: 7px; }
+  }
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+</head>
+<body>
+<main>
+  <header class="intro">
+    <h1>Rezonathor</h1>
+    <p class="lead">The plugin's engine, strings and exciter included, running in the browser with its interface: same tabs, same settings, same presets.</p>
+  </header>
+
+  <section class="card" aria-label="Sound">
+    <div class="bar">
+      <button id="start" class="btn primary" disabled>Start sound</button>
+      <button id="play" class="btn" disabled>Play LE LUTH</button>
+      <label class="tempo">Tempo <input id="tempo" type="range" min="40" max="240" step="1" value="120" disabled><output id="tempoOut">120 BPM</output></label>
+    </div>
+    <div class="bar">
+      <div class="meters">
+        <div><span>Level</span><b id="level">–</b></div>
+        <div><span>Active voices</span><b id="voices">–</b></div>
+        <div><span>Sample rate</span><b id="rate">–</b></div>
+      </div>
+      <label class="check"><input type="checkbox" id="mobile"> Mobile limits (8 voices, 2 strings)</label>
+    </div>
+    <p class="note" id="status">Pick a preset and tweak it right away; press “Start sound” to hear it.</p>
+  </section>
+
+  <section class="window" aria-label="Instrument" id="window">
+    <div class="whead">
+      <div class="brand" title="Web demo: the engine of the plugin v1.33.0, synth target"><div class="name">PHY5</div><div class="ver">v1.33.0 [SYNTH]</div></div>
+      <div class="tabs" id="tabs" role="tablist" aria-label="Tabs"></div>
+      <div class="presetbox">
+        <div class="presetrow">
+          <span class="select"><select id="preset" disabled aria-label="Preset"></select></span>
+          <button id="saveBtn" class="btn small" type="button" hidden>Save</button>
+        </div>
+        <span class="voices" id="voicesHead">voices 0 / 16</span>
+      </div>
+    </div>
+    <div class="pages" id="pages"><p class="loading" id="loading">Loading the engine…</p></div>
+    <div id="modpanel"></div>
+  </section>
+  <p class="note">Modulation: drag a tile from the bottom of the window onto a parameter (on a touch screen: tap the tile, then the parameter). The “~” button of a modulated parameter, or a right-click, opens its routes.</p>
+
+  <section class="card" aria-label="Keyboard">
+    <div class="keyboard" id="keyboard"></div>
+    <p class="note">Computer keyboard: the middle row (from A on QWERTY, Q on AZERTY), the row above for the black keys. The lower you press a key on screen, the louder the note.</p>
+  </section>
+
+  <section class="card">
+    <details id="allParams">
+      <summary>All parameters</summary>
+      <p class="note" id="hiddenNote"></p>
+      <input class="filterbox" id="filter" type="search" placeholder="Filter: decay, granular, lfo…" aria-label="Filter the parameters">
+      <div id="params"></div>
+    </details>
+  </section>
+
+  <section class="card">
+    <h2>CPU benchmark</h2>
+    <div class="bar"><button id="bench" class="btn" disabled>Measure with this preset</button></div>
+    <p class="note" id="benchOut">Renders 30 s of the song as fast as possible with the chosen preset, then gives the share of real time used on one core of this device.</p>
+  </section>
+
+  <footer><button id="theme" class="btn" type="button">Theme: light</button></footer>
+</main>
+<dialog class="savedlg" id="saveDlg" aria-labelledby="saveTitle">
+  <form method="dialog" id="saveForm">
+    <h3 id="saveTitle">Save your preset</h3>
+    <div id="accountPart">
+      <p class="note" id="accountText">Create an account to save one preset that everyone can load and play.</p>
+      <label class="field">Username <input id="userName" autocomplete="username" maxlength="20" spellcheck="false" autocapitalize="none" placeholder="3 to 20 letters, digits, - or _"></label>
+      <label class="field">Password <input id="userPass" type="password" autocomplete="new-password" minlength="6" placeholder="6 characters minimum"></label>
+      <button type="button" class="linkbtn" id="switchMode">I already have an account</button>
+    </div>
+    <div id="presetPart">
+      <p class="note" id="signedText"></p>
+      <label class="field">Preset name <input id="presetName" maxlength="40"></label>
+      <p class="note">One preset per account: saving replaces your previous one. Everyone can load it from the preset menu (Community).</p>
+    </div>
+    <p class="note warn" id="saveError" role="alert"></p>
+    <div class="dlgbar">
+      <button type="button" class="linkbtn" id="logOutBtn">Log out</button>
+      <button type="button" class="linkbtn" id="deleteBtn">Delete my preset</button>
+      <span class="spacer"></span>
+      <button type="button" class="btn" id="cancelBtn">Cancel</button>
+      <button type="submit" class="btn primary" id="okBtn">Save</button>
+    </div>
+  </form>
+</dialog>
+<div class="armbar" id="armBar" hidden><span id="armText"></span><button class="btn" id="armCancel" type="button">Cancel</button></div>
+<script type="module" src="app.js"></script>
+</body>
+</html>

@@ -1,0 +1,27 @@
+{
+  "format": "rezonathor-preset",
+  "version": 1,
+  "name": "Metallic Resonance",
+  "params": {
+    "decay": 3,
+    "damp": 0.15,
+    "blend": 0.1,
+    "dephasage": 0.6,
+    "square": 0.3,
+    "release": 900,
+    "granularB": 0,
+    "outputGain": -2,
+    "resoFilterMix": 0.8,
+    "resoFilterMode": 2,
+    "resoFilterFreq": 1800,
+    "resoFilterWidth": 0.7,
+    "modEnvAttack": 5,
+    "modEnvDecay": 800,
+    "modEnvSustain": 0.2,
+    "modEnvRelease": 1620,
+    "modEnvReleaseCurve": 0.3
+  },
+  "routes": [
+    { "source": "Envelope", "target": "resoFilterFreq", "depth": 0.3, "bipolar": false }
+  ]
+}

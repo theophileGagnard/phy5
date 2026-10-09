@@ -1,0 +1,14 @@
+{
+  "format": "rezonathor-preset",
+  "version": 1,
+  "name": "Clean Pluck",
+  "params": {
+    "decay": 1.4,
+    "damp": 0.3,
+    "release": 500,
+    "granularB": 0
+  },
+  "routes": [
+    { "source": "Velocity", "target": "damp", "depth": -0.3, "bipolar": true }
+  ]
+}
