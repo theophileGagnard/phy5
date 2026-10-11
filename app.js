@@ -259,8 +259,8 @@ async function loadPreset()
                                              : await fetch (v).then (r => r.text());
     const { error, limits } = applyPresetText (presetText);
     $('status').classList.toggle ('warn', !! error);
-    $('status').textContent = error ? `Preset rejected: ${error}`
-        : limits.length ? `Preset loaded (limited on mobile: ${limits.join (', ')}).` : 'Preset loaded.';
+    // succès : aucun message (la ligne d'état n'apparaît que pour une erreur ou un enregistrement)
+    $('status').textContent = error ? `Preset rejected: ${error}` : '';
 }
 $('preset').onchange = loadPreset;
 

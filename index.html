@@ -134,7 +134,7 @@
   .linkbtn { border: 0; background: none; padding: 4px 0; color: var(--cool); font: 400 14px var(--font-body); text-decoration: underline; cursor: pointer; justify-self: start; }
   .dlgbar { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: center; }
   .dlgbar .spacer { flex: 1; }
-  #saveError:empty { display: none; }
+  #saveError:empty, #status:empty { display: none; }
 
   .pages { padding: 20px 12px 18px; min-width: 0; }
   /* familles en flux (ordre du signal), traits de crayon entre elles : vertical dans une rangée, horizontal entre deux rangées.
@@ -397,15 +397,16 @@
       <button id="play" class="btn primary" disabled>Play LE LUTH</button>
       <label class="tempo">Tempo <input id="tempo" type="range" min="40" max="240" step="1" value="120"><output id="tempoOut">120 BPM</output></label>
     </div>
-    <div class="bar">
+    <!-- Level, voix actives, taux d'échantillonnage et limites mobile : masqués (le code qui les remplit reste en place) -->
+    <div class="bar" hidden>
       <div class="meters">
         <div><span>Level</span><b id="level">–</b></div>
         <div><span>Active voices</span><b id="voices">–</b></div>
-        <div hidden><span>Sample rate</span><b id="rate">–</b></div>
+        <div><span>Sample rate</span><b id="rate">–</b></div>
       </div>
-      <label class="check" hidden><input type="checkbox" id="mobile"> Mobile limits (8 voices, 2 strings)</label>
+      <label class="check"><input type="checkbox" id="mobile"> Mobile limits (8 voices, 2 strings)</label>
     </div>
-    <p class="note" id="status">Pick a preset and tweak it right away; press “Play LE LUTH” or the keyboard to hear it.</p>
+    <p class="note" id="status"></p>
   </section>
 
   <section class="window" aria-label="Instrument" id="window">
@@ -427,7 +428,6 @@
 
   <section class="card" aria-label="Keyboard">
     <div class="keyboard" id="keyboard"></div>
-    <p class="note">Computer keyboard: the middle row (from A on QWERTY, Q on AZERTY), the row above for the black keys. The lower you press a key on screen, the louder the note.</p>
   </section>
 
   <!-- masqué (demande : page épurée) ; le code reste en place -->
