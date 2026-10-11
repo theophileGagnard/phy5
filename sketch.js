@@ -287,12 +287,18 @@ export function applySkin()
 // tabSketchPath) : les modifier aux deux endroits. Reliés de gauche à droite par des liaisons (CSS .link), sauf Mod.
 const TAB_SKETCHES = [
     'M1 12L3 4L5 20L7 6L9 18L11 8L13 16L15 10L17 14L19 11L21 13L23 12L29 12',
-    'M6 14l.9 0M9 9l.9 0M12 15l.9 0M10 19l.9 0M15 6l.9 0M17 12l.9 0M14 11l.9 0M20 16l.9 0M19 20l.9 0M23 9l.9 0'
-        + 'M25 15l.9 0M22 5l.9 0M7 11l.9 0M16 17l.9 0M13 20l.9 0',
+    null,   // Gran : voir GRAINS (le nombre de grains suit AMOUNT)
     null,   // Reso : voir RESO_SKETCHES (suit le slider TYPE)
     'M3 9L8 9L14 4L14 20L8 15L3 15ZM18 8Q21 12 18 16M21 5Q26 12 21 19',
     'M1 12C4 2 8 2 11 12C14 22 18 22 21 12C24 2 27 2 29 8',
 ];
+
+// Gran : le nuage compte plus ou moins de grains selon AMOUNT (granularB, 0..1) : 2 grains à 0, 15 à 1. Mêmes grains, dans
+// le même ordre, que le plugin (grainsPath) : un préfixe de la liste est déjà bien réparti.
+const GRAINS = [[15, 12], [8, 15], [22, 9], [19, 18], [11, 7], [25, 16], [12, 19], [20, 5], [5, 11], [17, 8], [7, 20], [23, 13],
+                [14, 15], [27, 8], [10, 11]];
+export const grainsFor = (amount) => Math.min (15, Math.max (2, 2 + Math.round (amount * 13)));
+const grainsPath = (n) => GRAINS.slice (0, n).map (([x, y]) => `M${x} ${y}l.9 0`).join ('');
 
 // Reso suit le slider TYPE (blend), dans le style du schéma de la corde : corde nette (sillet, chevalet, micro), corde
 // chaotique (tremblement), tube (contour double hachuré). Mêmes tracés que le plugin (resoPaths).
@@ -307,7 +313,7 @@ export const resoVariant = (blendNorm) => blendNorm < 0.34 ? 0 : blendNorm < 0.6
 export function tabSketch (index)
 {
     const s = svg ('svg', { viewBox: '0 0 30 24', class: 'tsketch', 'aria-hidden': 'true' });
-    const d = TAB_SKETCHES[index] ?? RESO_SKETCHES[0];
+    const d = index === 1 ? grainsPath (15) : TAB_SKETCHES[index] ?? RESO_SKETCHES[0];
     svg ('path', { d }, s);
     svg ('path', { d, class: 'g1', transform: 'translate(0.4 -0.3)' }, s);
     svg ('path', { d, class: 'g2', transform: 'translate(-0.5 0.4)' }, s);
@@ -318,6 +324,12 @@ export function tabSketch (index)
 export function setResoSketch (svgEl, variant)
 {
     for (const p of svgEl.querySelectorAll ('path')) p.setAttribute ('d', RESO_SKETCHES[variant]);
+}
+
+// change le nombre de grains du croquis de l'onglet Gran
+export function setGranSketch (svgEl, amount)
+{
+    for (const p of svgEl.querySelectorAll ('path')) p.setAttribute ('d', grainsPath (grainsFor (amount)));
 }
 
 // ---------------------------------------------------------------- planificateur de dessin

@@ -4,7 +4,7 @@
 import { store, initStore, param, on, real, setNorm, applyPresetText, fullState, setLive } from './store.js';
 import { el, formatValue, controlLabels, closeRoutes } from './widgets.js';
 import { modPanel } from './views.js';
-import { watchTheme, invalidateAll, tabSketch, setResoSketch, resoVariant } from './sketch.js';
+import { watchTheme, invalidateAll, tabSketch, setResoSketch, resoVariant, setGranSketch } from './sketch.js';
 import { TABS, exposed } from './tabs.js';
 import * as community from './community.js';
 
@@ -86,6 +86,7 @@ function buildInstrument()
         if (i > 0 && i < last) b.append (el ('span', 'link l'));
         if (i < last - 1) b.append (el ('span', 'link r'));
         if (t.id === 'reso') on ('blend', (v) => setResoSketch (sketch, resoVariant (v.norm)));   // corde / chaos / tube
+        if (t.id === 'gran') on ('granularB', (v) => setGranSketch (sketch, v.norm));   // plus de grains quand AMOUNT monte
         b.type = 'button';
         b.id = `tab-${t.id}`;
         b.setAttribute ('role', 'tab');
