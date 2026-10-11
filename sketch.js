@@ -275,9 +275,8 @@ export function applySkin()
     set ('--f-card', frameUrl (900, 160, { inset: 1, amp: 1.4, seed: 103, fill: alpha (c.paper, 0.25), stroke: ink (0.6), width: 1.2 }));
     set ('--f-hsep', svgUrl (600, 4, `<path d="${wobblyLineD (0, 2, 600, 2, 0.7, 111)}" ${strokeAttr (alpha (c.inkFaint, 0.75), 1.2)}/>`));
     set ('--f-vsep', svgUrl (4, 300, `<path d="${wobblyLineD (2, 0, 2, 300, 0.7, 113)}" ${strokeAttr (alpha (c.inkFaint, 0.75), 1.2)}/>`));
-    // liaisons entre les croquis des onglets : trait au crayon, pointillés (modulation) et pointe de flèche
+    // liaisons entre les croquis des onglets : trait au crayon et pointe de flèche (Mod reste à part, sans liaison)
     set ('--f-link', svgUrl (60, 4, `<path d="${wobblyLineD (0, 2, 60, 2, 0.6, 121)}" ${strokeAttr (ink (0.65), 1.2)}/>`));
-    set ('--f-link-dash', svgUrl (60, 4, `<path d="M0 2L60 2" ${strokeAttr (ink (0.65), 1.2, ' stroke-dasharray="4 3"')}/>`));
     set ('--f-arrow', svgUrl (8, 8, `<path d="M1.5 1L6.5 4L1.5 7" ${strokeAttr (ink (0.75), 1.3)}/>`));
     set ('--f-rule', svgUrl (900, 4, `<path d="${wobblyLineD (0, 2, 900, 2, 0.9, 11)}" ${strokeAttr (ink (0.85), 1.5)}/>`));
 }
@@ -285,24 +284,40 @@ export function applySkin()
 // ---------------------------------------------------------------- croquis des onglets
 // Un petit dessin par onglet (boîte de 30 x 24) : bruit qui s'éteint (Exciter), nuage de grains (Gran), corde qui vibre
 // (Reso), haut-parleur (Output), période de LFO (Mod). Les MÊMES tracés que le plugin (RezonathorLookAndFeel.h,
-// tabSketchPath) : les modifier aux deux endroits. Reliés de gauche à droite par des liaisons (CSS .link).
+// tabSketchPath) : les modifier aux deux endroits. Reliés de gauche à droite par des liaisons (CSS .link), sauf Mod.
 const TAB_SKETCHES = [
     'M1 12L3 4L5 20L7 6L9 18L11 8L13 16L15 10L17 14L19 11L21 13L23 12L29 12',
     'M6 14l.9 0M9 9l.9 0M12 15l.9 0M10 19l.9 0M15 6l.9 0M17 12l.9 0M14 11l.9 0M20 16l.9 0M19 20l.9 0M23 9l.9 0'
         + 'M25 15l.9 0M22 5l.9 0M7 11l.9 0M16 17l.9 0M13 20l.9 0',
-    'M3 4L3 20M27 4L27 20M3 12C9 2 21 2 27 12M3 12C9 22 21 22 27 12M3 12L27 12',
+    null,   // Reso : voir RESO_SKETCHES (suit le slider TYPE)
     'M3 9L8 9L14 4L14 20L8 15L3 15ZM18 8Q21 12 18 16M21 5Q26 12 21 19',
     'M1 12C4 2 8 2 11 12C14 22 18 22 21 12C24 2 27 2 29 8',
 ];
+
+// Reso suit le slider TYPE (blend), dans le style du schéma de la corde : corde nette (sillet, chevalet, micro), corde
+// chaotique (tremblement), tube (contour double hachuré). Mêmes tracés que le plugin (resoPaths).
+const RESO_SKETCHES = [
+    'M3 4L3 20M27 4L27 20M3 12L27 12M12 12a2.4 2.4 0 1 0 4.8 0a2.4 2.4 0 1 0 -4.8 0',
+    'M3 4L3 20M27 4L27 20M3 12L6 9L8 15L11 7L13 16L16 8L18 15L21 9L23 14L27 12',
+    'M3 4L3 20M27 4L27 20M3 8L27 8M3 16L27 16M8 8L6 16M13 8L11 16M18 8L16 16M23 8L21 16',
+];
+export const resoVariant = (blendNorm) => blendNorm < 0.34 ? 0 : blendNorm < 0.67 ? 1 : 2;
 
 // svg d'un croquis d'onglet : trait net + deux passages plus pâles, légèrement décalés (strokeGraphite)
 export function tabSketch (index)
 {
     const s = svg ('svg', { viewBox: '0 0 30 24', class: 'tsketch', 'aria-hidden': 'true' });
-    svg ('path', { d: TAB_SKETCHES[index] }, s);
-    svg ('path', { d: TAB_SKETCHES[index], class: 'g1', transform: 'translate(0.4 -0.3)' }, s);
-    svg ('path', { d: TAB_SKETCHES[index], class: 'g2', transform: 'translate(-0.5 0.4)' }, s);
+    const d = TAB_SKETCHES[index] ?? RESO_SKETCHES[0];
+    svg ('path', { d }, s);
+    svg ('path', { d, class: 'g1', transform: 'translate(0.4 -0.3)' }, s);
+    svg ('path', { d, class: 'g2', transform: 'translate(-0.5 0.4)' }, s);
     return s;
+}
+
+// change le dessin de l'onglet Reso (variante 0 corde, 1 chaos, 2 tube)
+export function setResoSketch (svgEl, variant)
+{
+    for (const p of svgEl.querySelectorAll ('path')) p.setAttribute ('d', RESO_SKETCHES[variant]);
 }
 
 // ---------------------------------------------------------------- planificateur de dessin

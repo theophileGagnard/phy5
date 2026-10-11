@@ -4,7 +4,7 @@
 import { store, initStore, param, on, real, setNorm, applyPresetText, fullState, setLive } from './store.js';
 import { el, formatValue, controlLabels, closeRoutes } from './widgets.js';
 import { modPanel } from './views.js';
-import { watchTheme, invalidateAll, tabSketch } from './sketch.js';
+import { watchTheme, invalidateAll, tabSketch, setResoSketch, resoVariant } from './sketch.js';
 import { TABS, exposed } from './tabs.js';
 import * as community from './community.js';
 
@@ -79,10 +79,13 @@ function buildInstrument()
     TABS.forEach ((t, i) =>
     {
         const b = el ('button', 'tab');
-        // croquis de l'onglet + liaisons vers ses voisins (flèches : chemin du son ; pointillés : modulation)
-        b.append (tabSketch (i), el ('span', 'tlabel', t.label));
-        if (i > 0) b.append (el ('span', `link l${i === TABS.length - 1 ? ' dash' : ''}`));
-        if (i < TABS.length - 1) b.append (el ('span', `link r${i === TABS.length - 2 ? ' dash' : ''}`));
+        // croquis de l'onglet + liaisons vers ses voisins (flèches : chemin du son ; Mod, à part, n'est relié à rien)
+        const sketch = tabSketch (i);
+        b.append (sketch, el ('span', 'tlabel', t.label));
+        const last = TABS.length - 1;
+        if (i > 0 && i < last) b.append (el ('span', 'link l'));
+        if (i < last - 1) b.append (el ('span', 'link r'));
+        if (t.id === 'reso') on ('blend', (v) => setResoSketch (sketch, resoVariant (v.norm)));   // corde / chaos / tube
         b.type = 'button';
         b.id = `tab-${t.id}`;
         b.setAttribute ('role', 'tab');
