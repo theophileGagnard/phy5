@@ -4,7 +4,7 @@
 import { store, initStore, param, on, real, setNorm, applyPresetText, fullState, setLive } from './store.js';
 import { el, formatValue, controlLabels, closeRoutes } from './widgets.js';
 import { modPanel } from './views.js';
-import { watchTheme, invalidateAll } from './sketch.js';
+import { watchTheme, invalidateAll, tabSketch } from './sketch.js';
 import { TABS, exposed } from './tabs.js';
 import * as community from './community.js';
 
@@ -79,7 +79,10 @@ function buildInstrument()
     TABS.forEach ((t, i) =>
     {
         const b = el ('button', 'tab');
-        b.textContent = t.label;
+        // croquis de l'onglet + liaisons vers ses voisins (flèches : chemin du son ; pointillés : modulation)
+        b.append (tabSketch (i), el ('span', 'tlabel', t.label));
+        if (i > 0) b.append (el ('span', `link l${i === TABS.length - 1 ? ' dash' : ''}`));
+        if (i < TABS.length - 1) b.append (el ('span', `link r${i === TABS.length - 2 ? ' dash' : ''}`));
         b.type = 'button';
         b.id = `tab-${t.id}`;
         b.setAttribute ('role', 'tab');

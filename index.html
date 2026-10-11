@@ -102,6 +102,19 @@
   .tab { position: relative; font: 400 19px var(--font-display); color: var(--ink-soft); padding: 0 17px; white-space: nowrap; cursor: pointer;
          border: 0; background: var(--f-tab) 0 4px / 100% calc(100% - 10px) no-repeat; min-height: 63px; }
   .tab:hover { background-image: var(--f-tab-hover); }
+  /* croquis d'onglet (30 x 24) en haut, libellé dessous ; liaisons à hauteur du croquis, jusqu'aux bords de l'onglet */
+  .tab { display: flex; flex-direction: column; align-items: center; justify-content: flex-start; padding-top: 8px; padding-bottom: 8px; }
+  .tab .tlabel { line-height: 1.15; margin-top: 4px; }
+  .tsketch { width: 30px; height: 24px; flex: none; overflow: visible; }
+  .tsketch path { fill: none; stroke: var(--ink-soft); stroke-width: 1.3px; stroke-linecap: round; stroke-linejoin: round; vector-effect: non-scaling-stroke; }
+  .tsketch .g1 { opacity: .5; stroke-width: .9px; }
+  .tsketch .g2 { opacity: .3; stroke-width: .7px; }
+  .tab[aria-selected="true"] .tsketch path { stroke: var(--ink); }
+  .tab .link { position: absolute; top: 18px; height: 4px; width: calc(50% - 19px); pointer-events: none;
+               background: var(--f-link) 0 0 / 100% 100% no-repeat; }
+  .tab .link.l { left: 0; background: var(--f-arrow) right center / 8px 8px no-repeat, var(--f-link) 0 0 / 100% 100% no-repeat; }
+  .tab .link.r { right: 0; }
+  .tab .link.dash { background: var(--f-link-dash) 0 0 / 100% 100% no-repeat; }
   .tab[aria-selected="true"] { color: var(--ink); background: var(--f-tab-on) 0 2px / 100% calc(100% - 1px) no-repeat; }
   .tab[aria-selected="true"]::after { content: ""; position: absolute; left: 14px; right: 14px; bottom: 6px; height: 4px;
                                       background: var(--f-underline) 0 0 / 100% 100% no-repeat; }
@@ -356,7 +369,8 @@
     .brand .ver { margin-top: 3px; }
     .presetbox .select { width: 160px; }
     .tabs { margin: 0 -2px; }
-    .tab { flex: 1 1 auto; min-width: 0; padding: 0 2px; font-size: 14px; min-height: 52px; }
+    .tab { flex: 1 1 auto; min-width: 0; padding: 6px 2px 6px; font-size: 14px; min-height: 60px; }
+    .tab .link { top: 16px; width: calc(50% - 17px); }
     .tab[aria-selected="true"]::after { left: 6px; right: 6px; bottom: 5px; }
     .pages { padding: 18px 6px 16px; }
     .family { flex: 1 1 100%; }
