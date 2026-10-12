@@ -131,8 +131,12 @@ function buildInstrument()
     const fitHeader = () =>
     {
         head.classList.remove ('stacked');
+        // largeur commune des onglets : le libellé le plus large + 34 px (comme le plugin, qui a 26 px de marges faute de place)
+        const labelW = Math.max (...[...tabbar.querySelectorAll ('.tlabel')].map (l => l.getBoundingClientRect().width));
+        if (labelW > 0) head.style.setProperty ('--tab-w', `${Math.ceil (labelW) + 34}px`);
         const tabsW = [...tabbar.children].reduce ((w, t) => w + t.getBoundingClientRect().width, 0);
-        if (tabsW > tabbar.getBoundingClientRect().width + 1) head.classList.add ('stacked');
+        // Mod est séparé du groupe par un espace d'au moins 12 px : il compte dans la place nécessaire
+        if (tabsW + 12 > tabbar.getBoundingClientRect().width + 1) head.classList.add ('stacked');
         headerGap();
     };
     // à refaire quand l'en-tête, les onglets ou le bloc preset changent de taille (menu rempli, SAVE!! affiché) et quand
