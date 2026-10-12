@@ -1,7 +1,7 @@
 // app.js -- page de la démo : chargement, presets, onglets façon plugin, son (AudioWorklet), morceau, clavier,
 // « Tous les paramètres », banc CPU. Le son est dans worklet.js ; l'état de l'interface dans store.js.
 
-import { store, initStore, param, on, real, setNorm, applyPresetText, fullState, setLive, onEdit, setStages, onGlow, setPluck } from './store.js';
+import { store, initStore, param, on, real, setNorm, applyPresetText, fullState, setLive, onEdit, setStages, onGlow, setPluck, undo, redo, onHistory, canUndo, canRedo } from './store.js';
 import { el, formatValue, choiceText, controlLabels, closeRoutes } from './widgets.js';
 import { modPanel } from './views.js';
 import { watchTheme, invalidateAll, tabSketch, setResoSketch, resoVariant, setGranSketch } from './sketch.js';
@@ -335,7 +335,21 @@ async function loadPreset()
     $('status').textContent = error ? `Preset rejected: ${error}` : '';
 }
 $('preset').onchange = loadPreset;
-onEdit (() => { $('saveBtn').classList.add ('blink'); markEdited(); });   // SAVE!! ne clignote qu'après le premier changement
+onEdit (() => { $('saveBtn').classList.add ('blink'); markEdited(); });
+
+// retour arrière : bouton à côté du menu des presets, et Cmd/Ctrl+Z (Maj : rétablir) hors des champs de saisie
+$('undoBtn').onclick = () => undo();
+onHistory (() => { $('undoBtn').disabled = ! canUndo(); });
+document.addEventListener ('keydown', (e) =>
+{
+    if (! (e.metaKey || e.ctrlKey) || e.altKey || /^(INPUT|TEXTAREA|SELECT)$/.test (e.target.tagName) && e.target.type !== 'range') return;
+    const k = e.key.toLowerCase();
+    if (k === 'z' || k === 'y')
+    {
+        e.preventDefault();
+        (k === 'y' || e.shiftKey ? redo : undo)();
+    }
+});   // SAVE!! ne clignote qu'après le premier changement
 
 $('mobile').onchange = () =>
 {

@@ -322,7 +322,11 @@
   .excsel.dim, .excsel.dim[aria-pressed="true"] { opacity: .45; }
   .excsrc { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 8px 12px; }
   .excsrc[hidden] { display: none; }
-  .exccol { display: flex; flex-direction: column; align-items: stretch; gap: 2px; width: 230px; max-width: 100%; }
+  /* largeurs du plugin (menu 104, enveloppe 192, gain 90) : EXCITER + les deux filtres (200) tiennent sur une rangée de 876 px */
+  .exccol { display: flex; flex-direction: column; align-items: stretch; gap: 2px; width: 192px; max-width: 100%; }
+  .excsrc { gap: 8px 8px; }
+  .excsrc .combo.primary { width: 104px; }
+  .excsrc .combo.primary select, .excsrc .combo.primary .select { width: 100%; min-width: 0; }
   .exccol .env { width: 100%; }
   .exccol .hs.small { width: 100%; grid-template-columns: 50px minmax(60px, 1fr) auto; }
   .exciter .combo { justify-items: center; }
@@ -527,6 +531,7 @@
       <div class="presetbox">
         <div class="presetrow">
           <span class="select"><select id="preset" disabled aria-label="Preset"></select></span>
+          <button id="undoBtn" class="btn small" type="button" disabled title="Undo the last change (Cmd/Ctrl+Z; Shift+Cmd/Ctrl+Z redoes). Also undoes a preset load.">Undo</button>
           <button id="saveBtn" class="btn small" type="button" hidden>SAVE!!</button>
         </div>
         <span class="voices" id="voicesHead">voices 0 / 16</span>

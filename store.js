@@ -36,6 +36,64 @@ export async function initStore (wasmBytes)
     store.byKey = store.model.byKey;
 }
 
+// ---------------------------------------------------------------- historique (retour arrière)
+// Instantanés de l'état (valeurs réelles hors réglages de machine + routes). Les changements à moins de 0,45 s l'un de
+// l'autre ne font qu'une étape ; charger un preset en est une (sauf le tout premier, au démarrage). Annuler / rétablir
+// repassent par applyPresetText : le worklet reçoit le même texte que pour un preset.
+const SOURCE_NAMES = { 0: 'LFO', 2: 'Velocity', 3: 'Pitch', 4: 'Envelope', 5: 'EnvelopeFollower', 6: 'LFO2', 8: 'Envelope2',
+                       9: 'EnvelopeFollower2', 10: 'LFO3', 11: 'LFO4' };
+const history = { undo: [], redo: [], before: null, timer: 0, restoring: false, armed: false };
+const historyListeners = new Set();
+export const onHistory = (fn) => { historyListeners.add (fn); fn(); };
+export const canUndo = () => history.undo.length > 0 || history.before !== null;
+export const canRedo = () => history.redo.length > 0;
+const historyChanged = () => { for (const fn of historyListeners) fn(); };
+
+function snapshot()
+{
+    const params = {};
+    for (const p of store.params) if (! p.machine) params[p.key] = store.model.get (p.key);
+    const routes = store.routes.filter (r => SOURCE_NAMES[r.source] !== undefined)
+                               .map (r => ({ source: SOURCE_NAMES[r.source], target: r.target, depth: r.depth, bipolar: r.bipolar }));
+    return JSON.stringify ({ format: 'rezonathor-preset', version: 2, name: '', params, routes });
+}
+
+function commitHistory()
+{
+    clearTimeout (history.timer);
+    if (history.before === null) return;
+    history.undo.push (history.before);
+    if (history.undo.length > 60) history.undo.shift();
+    history.redo.length = 0;
+    history.before = null;
+    historyChanged();
+}
+
+// à appeler JUSTE AVANT un changement fait par l'utilisateur
+function beginChange()
+{
+    if (history.restoring || ! history.armed) return;
+    if (history.before === null) history.before = snapshot();
+    clearTimeout (history.timer);
+    history.timer = setTimeout (commitHistory, 450);
+    historyChanged();
+}
+
+function restore (from, to)
+{
+    commitHistory();
+    if (! from.length) return false;
+    to.push (snapshot());
+    history.restoring = true;
+    applyPresetText (from.pop());
+    history.restoring = false;
+    edited();
+    historyChanged();
+    return true;
+}
+export const undo = () => restore (history.undo, history.redo);
+export const redo = () => restore (history.redo, history.undo);
+
 // ---------------------------------------------------------------- lecture
 export const param = (key) => store.byKey[key];
 export const value = (key) => ({ real: store.model.get (key), norm: store.model.getNormalized (key) });
@@ -50,6 +108,7 @@ export function setNorm (key, norm)
 {
     if (! Number.isFinite (norm)) return;   // un geste mal calculé ne doit jamais envoyer NaN au moteur
     norm = Math.min (1, Math.max (0, norm));
+    beginChange();
     store.model.setNormalized (key, norm);
     store.send ({ type: 'set', key, norm });
     if (store.mobile && (key === 'numStrings' || key === 'maxVoices'))
@@ -90,6 +149,11 @@ export function notifyAll()
 // Applique un preset (texte JSON du Core) au modèle ; renvoie { error, limits }. Le worklet reçoit le même texte.
 export function applyPresetText (text)
 {
+    if (! history.restoring)
+    {
+        if (history.armed) { commitHistory(); history.before = snapshot(); commitHistory(); }   // le preset chargé est une étape
+        history.armed = true;
+    }
     const error = store.model.applyPreset (text);
     const limits = (! error && store.mobile) ? applyMobileLimits (store.model) : [];
     store.send ({ type: 'preset', text });
@@ -114,6 +178,7 @@ export const onRoutes = (fn) => { routeListeners.add (fn); fn(); };
 
 export function setRoutes (list)
 {
+    beginChange();
     store.model.setRoutes (list);
     store.routes = store.model.routes();   // relues : le moteur ignore les routes invalides
     store.send ({ type: 'routes', routes: store.routes });
