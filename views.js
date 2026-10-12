@@ -31,17 +31,25 @@ const kDisperserStages = 6;   // MultiModeFilter::kDisperserStages
 
 // Modes des filtres (index du paramètre « ...FilterMode ») : seuls ceux-ci ont une courbe ; Allpass (1) et Disperser (2)
 // ne changent pas le niveau (ligne plate).
-const BANDPASS = 0, LOWPASS = 3, HIGHPASS = 4;
-const shaped = (mode) => mode === BANDPASS || mode === LOWPASS || mode === HIGHPASS;
+const BANDPASS = 0, LOWPASS = 3, HIGHPASS = 4, COMB = 5;
+const shaped = (mode) => mode === BANDPASS || mode === LOWPASS || mode === HIGHPASS || mode === COMB;
 const dampingOf = (w) => 0.06 + Math.min (Math.max (w, 0), 1) * 1.94;
 
 // |H| de la cellule SVF, formule fermée (FilterResponse::bandpassMagnitude, MultiModeFilter::magnitudeAt) : prototype
 // analogique, x = fréquence rapportée à la coupure, k = amortissement (Width). Bandpass : k x / den. Lowpass : norm / den ;
 // Highpass : norm x² / den, où norm ramène le pic de résonance à 0 dB (comme le moteur).
+// Comb : peigne à contre-réaction g = 0,95 (1 - Width), retard sr / Freq, gain (1 - g) : |H| = (1 - g) / |1 - g e^-jwD|,
+// pics = 1 à Freq, 2 Freq, 3 Freq... (FilterResponse::combMagnitude).
 function filterMagnitude (sr, mode, fcIn, wIn, fIn)
 {
     const fc = Math.min (Math.max (fcIn, 20), sr * 0.49);
     const f = Math.min (Math.max (fIn, 1e-3), sr * 0.4999);
+    if (mode === COMB)
+    {
+        const g = 0.95 * (1 - Math.min (Math.max (wIn, 0), 1));
+        const wD = 2 * Math.PI * f / fc;
+        return (1 - g) / Math.sqrt (Math.max (1 - 2 * g * Math.cos (wD) + g * g, 1e-12));
+    }
     const g = Math.tan (Math.PI * fc / sr);
     const k = dampingOf (wIn);
     const x = Math.tan (Math.PI * f / sr) / g;
@@ -57,6 +65,7 @@ function filterMagnitude (sr, mode, fcIn, wIn, fIn)
 function peakFrequency (sr, mode, fcIn, wIn)
 {
     const fc = Math.min (Math.max (fcIn, 20), sr * 0.49);
+    if (mode === COMB) return null;   // un peigne a des pics à tous les multiples de Freq : pas de sommet unique
     if (mode === BANDPASS) return fc;
     const k = dampingOf (wIn);
     if (k >= Math.SQRT2) return null;
@@ -114,7 +123,19 @@ export class XYPad extends CanvasView
         {
             const t = i / n;
             if (! apexDone && apex <= t) { apexDone = true; pts.push ([b.x + apex * b.w, yOf (1)]); }
-            pts.push ([b.x + t * b.w, yOf (shaped (mode) ? filterMagnitude (sr, mode, fc, w, this.xf (t)) : 1)]);
+            let mag = 1;
+            if (mode === COMB)
+            {
+                // les dents d'un peigne se resserrent en haut de l'axe log : moyenne de 8 points par pas de tracé (comme le plugin)
+                for (let j = 0, sum = 0; j < 8; ++j)
+                {
+                    sum += filterMagnitude (sr, mode, fc, w, this.xf (t + ((j + 0.5) / 8 - 0.5) / n));
+                    if (j === 7) mag = sum / 8;
+                }
+            }
+            else if (shaped (mode))
+                mag = filterMagnitude (sr, mode, fc, w, this.xf (t));
+            pts.push ([b.x + t * b.w, yOf (mag)]);
         }
         return pts;
     }
@@ -372,7 +393,7 @@ export class PluckView extends CanvasView
     constructor()
     {
         super ('pluckview');
-        this.root.title = 'The last pluck, as it leaves the Exciter (after gain, filter and comb).';
+        this.root.title = 'The last pluck, as it leaves the Exciter (after gain and filters).';
         this.canvas.setAttribute ('role', 'img');
         this.canvas.setAttribute ('aria-label', 'Waveform of the last pluck');
         onPluck (() => this.invalidate());
@@ -380,34 +401,36 @@ export class PluckView extends CanvasView
 
     draw (ctx, w, h)
     {
+        // même dessin que les courbes de filtre et d'enveloppe : cadre crayon, silhouette hachurée, contour graphite
         const c = colors(), b = { x: 2, y: 2, w: w - 4, h: h - 4 };
         sketchFrame (ctx, b.x, b.y, b.w, b.h, 71);
-        const mid = Math.round (b.y + b.h / 2) + 0.5;
-        ctx.strokeStyle = alpha (c.inkFaint, 0.5); ctx.lineWidth = 1;   // ligne de zéro, pâle (visible aussi sur papier sombre)
-        ctx.beginPath(); ctx.moveTo (b.x + 1, mid); ctx.lineTo (b.x + b.w - 1, mid); ctx.stroke();
+        const mid = b.y + b.h / 2;
+        ctx.strokeStyle = alpha (c.line, 0.3); ctx.lineWidth = 1;   // ligne de zéro, comme le repère central du pad
+        ctx.beginPath(); ctx.moveTo (b.x, mid); ctx.lineTo (b.x + b.w, mid); ctx.stroke();
 
         const p = store.pluck;
-        if (! p || p.columns < 1) return;
+        if (! p || p.columns < 2) return;
         const n = p.data.length / 2;   // n minimums puis n maximums
         const cols = Math.min (p.columns, n);
         let peak = 0;
         for (let i = 0; i < cols; ++i) peak = Math.max (peak, Math.abs (p.data[i]), Math.abs (p.data[n + i]));
         if (! (peak > 1e-9)) return;
-        const amp = b.h / 2 - 6, x0 = b.x + 4, span = b.w - 8;
+        const amp = (b.h - 16) / 2 / peak, x0 = b.x + 5, span = b.w - 10;
+        const xOf = (i) => x0 + span * i / (n - 1);
+        // bord haut (max) puis bord bas (min) en revenant : une seule silhouette fermée
         const pts = [];
-        for (let i = 0; i < cols; ++i)
-        {
-            const x = x0 + span * i / (n - 1);
-            pts.push ([x, mid - p.data[i] / peak * amp], [x, mid - p.data[n + i] / peak * amp]);
-        }
-        graphite (ctx, pts, c.warm, 1.2, 17);   // même couleur chaude que dans le plugin (PluckView)
+        for (let i = 0; i < cols; ++i) pts.push ([xOf (i), mid - p.data[n + i] * amp]);
+        for (let i = cols - 1; i >= 0; --i) pts.push ([xOf (i), mid - p.data[i] * amp]);
+        hatch (ctx, (cx) => { pts.forEach (([x, y], i) => i ? cx.lineTo (x, y) : cx.moveTo (x, y)); cx.closePath(); },
+               b, alpha (c.warm, 0.45), 4.5, 8);
+        graphite (ctx, [...pts, pts[0]], c.warm, 1.6, 5);
 
         if (p.windowMs > 0)   // durée couverte par la photo
         {
             ctx.fillStyle = c.inkFaint;
-            ctx.font = font (9);
+            ctx.font = font (10);
             ctx.textAlign = 'right'; ctx.textBaseline = 'bottom';
-            ctx.fillText (`${p.windowMs < 10 ? p.windowMs.toFixed (1) : Math.round (p.windowMs)} ms`, b.x + b.w - 5, b.y + b.h - 3);
+            ctx.fillText (`${p.windowMs < 10 ? p.windowMs.toFixed (1) : Math.round (p.windowMs)} ms`, b.x + b.w - 4, b.y + b.h - 4);
         }
     }
 }

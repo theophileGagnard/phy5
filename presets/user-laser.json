@@ -58,8 +58,6 @@
     "outputFilterMode": 0,
     "outputFilterFreq": 1000,
     "outputFilterWidth": 0.5,
-    "combFeedback": 0.30000004,
-    "combDelaySamples": 3,
     "dryWet": 1,
     "modRetrigger": 0,
     "modActiveOnlyWhenPlaying": 0,
@@ -128,7 +126,12 @@
     "filterOn": 0,
     "resoFilterOn": 1,
     "granFilterOn": 1,
-    "outputFilterOn": 0
+    "outputFilterOn": 0,
+    "filter2On": 1,
+    "filter2Mix": 1,
+    "filter2Mode": 5,
+    "filter2Freq": 15000,
+    "filter2Width": 0.6842105
   },
   "routes": [
     { "source": "Pitch", "target": "decay", "depth": -0.175, "bipolar": false },

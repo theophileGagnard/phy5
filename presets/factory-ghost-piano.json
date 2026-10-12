@@ -9,8 +9,11 @@
     "numStrings": 3,
     "detuneCents": 6,
     "granularB": 0,
-    "combFeedback": 0.3,
-    "combDelaySamples": 3
+    "filter2On": 1,
+    "filter2Mix": 1,
+    "filter2Mode": 5,
+    "filter2Freq": 15000,
+    "filter2Width": 0.68421054
   },
   "routes": [
     { "source": "Pitch", "target": "decay", "depth": -0.175, "bipolar": false },

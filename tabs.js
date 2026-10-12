@@ -1,5 +1,5 @@
 // tabs.js -- les cinq onglets du plugin (Source/PluginEditor.cpp, cible SYNTH), famille par famille, dans le même ordre :
-//   Exciter : EXCITER 1 | EXCITER 2 | Input Filter | COMB | PLUCK (photo du dernier pincement)
+//   Exciter : EXCITER 1 | EXCITER 2 | Input Filter | Input Filter 2 | RESULT (photo du dernier pincement)
 //   Grains  : GRAIN | TEXTURE | FEEDBACK | Feedback Filter
 //   Body    : RESONANCE | BUILD | Loop Filter | POLYCHORD | PITCH | MIDI
 //   Output  : Output Filter | SAT | GAIN, puis Oversampling / Max Voices
@@ -88,7 +88,7 @@ function filterBlock (title, prefix, opts = {})
     const caption = el ('p', 'caption', opts.caption ?? '');
     caption.hidden = true;
     const mix = H (keys.mix, 'Mix', { format: opts.mixFormat, parse: opts.mixParse, tip: 'Filter dry/wet (0 = no effect).' });
-    const mode = C (keys.mode, '', { tip: 'Filter mode: Bandpass, Allpass, Disperser, Lowpass or Highpass.' });
+    const mode = C (keys.mode, '', { tip: 'Filter mode: Bandpass, Allpass, Disperser, Lowpass, Highpass or Comb.' });
     mode.root.querySelector ('.lbl').remove();
     const pad = new XYPad (keys);
     const fq = K (keys.freq, 'Freq', 'sec', { tip: 'Centre frequency of the filter.' });
@@ -96,8 +96,14 @@ function filterBlock (title, prefix, opts = {})
     f.append (head, caption, R (mix), R (mode), pad.root, row ('pair', fq, wd));
 
     // Lowpass / Highpass : Width règle la résonance (le moteur ramène le pic à 0 dB)
-    on (keys.mode, (v) => wd.setTip (Math.round (v.real) >= 3 ? 'Resonance: 0 = very resonant, 1 = soft. The peak is normalised to 0 dB.'
-                                                              : 'Width of the band.'));
+    on (keys.mode, (v) =>
+    {
+        const m = Math.round (v.real);
+        wd.setTip (m === 5 ? 'Depth of the comb: 0 = deep, 1 = none.'
+                 : m >= 3 ? 'Resonance: 0 = very resonant, 1 = soft. The peak is normalised to 0 dB.'
+                 : 'Width of the band.');
+        fq.setTip (m === 5 ? 'Fundamental of the comb: peaks at Freq, 2 Freq, 3 Freq...' : 'Centre frequency of the filter.');
+    });
 
     const extra = [mix, mode, wd];   // contrôles à estomper avec le filtre (Freq à part : voir setFreqIgnored)
     let off = false, freqIgnored = false;
@@ -190,15 +196,12 @@ function exciterTab()
     page.push (exciterFamily());
 
     page.push (filterBlock ('Input Filter', 'filter').root);
+    // 2e filtre : en série après le 1er, éteint par défaut (mode Comb par défaut : il remplace l'ancien comb d'entrée)
+    page.push (filterBlock ('Input Filter 2', 'filter2').root);
 
-    const comb = family ('COMB');
-    comb.append (row ('', K ('combDelaySamples', 'DELAY', 'prim', { tip: 'Comb filter delay length: tunes the comb resonance applied to the excitation.' }),
-                          K ('combFeedback', 'Feedback', 'sec', { tip: 'Comb filter feedback amount.' })));
-    page.push (comb);
-
-    // photo du dernier pincement : ce qui sort de cet onglet (après gain, filtre et peigne) ; prend la place restante
-    const pluck = family ('PLUCK', 'pluck');
-    pluck.querySelector ('.ftitle').title = 'The last pluck, as it leaves the Exciter (after gain, filter and comb).';
+    // photo du dernier pincement : ce qui sort de cet onglet (après gain et filtres) ; prend la place restante
+    const pluck = family ('RESULT', 'pluck');
+    pluck.querySelector ('.ftitle').title = 'The last pluck, as it leaves the Exciter (after gain and filters).';
     pluck.append (new PluckView().root);
     page.push (pluck);
     return page;

@@ -58,8 +58,6 @@
     "outputFilterMode": 0,
     "outputFilterFreq": 1000,
     "outputFilterWidth": 0.5,
-    "combFeedback": -0.41385925,
-    "combDelaySamples": 1,
     "dryWet": 1,
     "modRetrigger": 0,
     "modActiveOnlyWhenPlaying": 0,
@@ -128,7 +126,12 @@
     "filterOn": 0,
     "resoFilterOn": 0,
     "granFilterOn": 1,
-    "outputFilterOn": 0
+    "outputFilterOn": 0,
+    "filter2On": 1,
+    "filter2Mix": 1,
+    "filter2Mode": 5,
+    "filter2Freq": 15000,
+    "filter2Width": 0.5643587
   },
   "routes": [
     { "source": "Velocity", "target": "damp", "depth": -0.38, "bipolar": true }

@@ -123,7 +123,7 @@ export class Rezo
     loopMixFromRatio (r)      { return this.ex.rezo_loop_mix_from_ratio (r); }
     granLatencyMs (w, b, s)   { return this.ex.rezo_gran_latency_ms (w, b, s); }
     softClip (curve, db, x)   { return this.ex.rezo_soft_clip (curve, db, x); }
-    // |H| d'un filtre, tout mode (0 Bandpass, 1 Allpass, 2 Disperser, 3 Lowpass, 4 Highpass)
+    // |H| d'un filtre, tout mode (0 Bandpass, 1 Allpass, 2 Disperser, 3 Lowpass, 4 Highpass, 5 Comb)
     filterMagnitude (sr, mode, fc, width, f) { return this.ex.rezo_filter_magnitude (sr, mode, fc, width, f); }
     lfoPreview (wave, depth, smooth, perPeriod = 120)
     {

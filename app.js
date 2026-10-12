@@ -184,17 +184,21 @@ function buildInstrument()
 
     // logo : la corde du Φ vibre avec l'énergie de la sortie (même niveau que l'onglet Output). Deux arcs symétriques
     // d'écart a = 5 g px à la place du trait droit ; les tracés ne changent que si a, par pas de 0,25 px, a changé.
-    const logo = $('logo'), arcs = logo.querySelectorAll ('.vib');
+    // Deux logos : celui du titre de la page (grand) et celui de l'en-tête de la fenêtre ; ils vibrent ensemble.
+    const logos = [...document.querySelectorAll ('.logo')].map (svg => ({ svg, arcs: svg.querySelectorAll ('.vib') }));
     let bow = 0;
     onGlow ((g) =>
     {
         const a = Math.round (5 * g[TAB_STAGE.output] / 0.25) * 0.25;
         if (a === bow) return;
         bow = a;
-        logo.classList.toggle ('vibrating', a > 0);
-        if (a <= 0) return;
-        arcs[0].setAttribute ('d', `M14 2Q${14 + a} 17.5 14 33`);
-        arcs[1].setAttribute ('d', `M14 2Q${14 - a} 17.5 14 33`);
+        for (const { svg, arcs } of logos)
+        {
+            svg.classList.toggle ('vibrating', a > 0);
+            if (a <= 0) continue;
+            arcs[0].setAttribute ('d', `M14 2Q${14 + a} 17.5 14 33`);
+            arcs[1].setAttribute ('d', `M14 2Q${14 - a} 17.5 14 33`);
+        }
     });
 
     // voix actives / voix max (comme l'en-tête du plugin)
@@ -227,15 +231,19 @@ function openSection (src)
 // Une section commence au paramètre nommé et court jusqu'à la suivante, dans l'ordre de la table du Core.
 const SECTIONS = [
     ['decay', 'Resonator'], ['release', 'Voices and strings'], ['granularB', 'Granular'], ['gateMs', 'Gate, gains, distortion'],
-    ['filterMix', 'Filters'], ['combFeedback', 'Input comb and output'], ['modRetrigger', 'Modulation'],
+    ['filterMix', 'Filters'], ['combFeedback', 'Output'], ['modRetrigger', 'Modulation'],
     ['exciterMix', 'Exciter and polyphony'], ['exciterAttackCurve', 'Envelope curves'], ['modLfoEnabled3', 'LFO 3 and 4, modulation settings'],
-    ['limiter', 'Limiter'], ['filterOn', 'Filter switches'], ['exciter2Noise', 'Exciter 2'],
+    ['limiter', 'Limiter'], ['filterOn', 'Filter switches'], ['exciter2Noise', 'Exciter 2'], ['filter2On', 'Input filter 2'],
 ];
+
+// Paramètres supprimés du son (le comb d'entrée est devenu le mode Comb du 2e filtre) : gardés dans la table du Core pour l'ordre
+// et la relecture des anciens états, mais sans effet : ils ne sont pas proposés ici.
+const REMOVED = new Set (['combFeedback', 'combDelaySamples']);
 
 function buildAllParams()
 {
     const box = $('params');
-    const hidden = store.params.filter (p => ! p.machine && ! exposed.has (p.key));
+    const hidden = store.params.filter (p => ! p.machine && ! exposed.has (p.key) && ! REMOVED.has (p.key));
     $('hiddenNote').textContent = hidden.length
         ? `Not shown in the tabs (effect only, or internal setting): ${hidden.map (p => p.name).join (', ')}.`
         : '';
@@ -243,7 +251,7 @@ function buildAllParams()
     {
         const s = SECTIONS.find (([k]) => k === p.key);
         if (s) box.append (el ('h3', 'psec', s[1]));
-        if (p.machine) continue;   // oversampling, exciterMix : réglages de machine, fixés par la démo
+        if (p.machine || REMOVED.has (p.key)) continue;   // oversampling, exciterMix : réglages de machine, fixés par la démo
         box.append (paramRow (p));
     }
     $('filter').oninput = () =>

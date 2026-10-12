@@ -58,8 +58,6 @@
     "outputFilterMode": 0,
     "outputFilterFreq": 1000,
     "outputFilterWidth": 0.5,
-    "combFeedback": 0.23892184,
-    "combDelaySamples": 1,
     "dryWet": 1,
     "modRetrigger": 0,
     "modActiveOnlyWhenPlaying": 0,
@@ -128,13 +126,18 @@
     "filterOn": 0,
     "resoFilterOn": 0,
     "granFilterOn": 0,
-    "outputFilterOn": 0
+    "outputFilterOn": 0,
+    "filter2On": 1,
+    "filter2Mix": 1,
+    "filter2Mode": 5,
+    "filter2Freq": 15000,
+    "filter2Width": 0.7485033
   },
   "routes": [
     { "source": "Velocity", "target": "inputGain", "depth": 0.105, "bipolar": true },
     { "source": "Velocity", "target": "damp", "depth": -0.29, "bipolar": true },
     { "source": "Velocity", "target": "granularWindowMs", "depth": -0.24, "bipolar": true },
     { "source": "Velocity", "target": "exciterAttack", "depth": -0.21, "bipolar": false },
-    { "source": "Pitch", "target": "combFeedback", "depth": -0.22, "bipolar": true }
+    { "source": "Pitch", "target": "filter2Width", "depth": 0.4168421, "bipolar": true }
   ]
 }

@@ -63,10 +63,12 @@
   .framed { background-repeat: no-repeat; background-position: 0 0; background-size: 100% 100%; }
 
   /* ---------------- en-tête de la page et barre du son (textes de la page : en français) */
-  .intro { display: flex; justify-content: flex-start; align-items: flex-end; gap: 12px 24px; }
+  .intro { display: flex; justify-content: center; align-items: center; gap: 12px 40px; }
   .painting { margin: 0; width: min(100%, 230px); flex: none; }
   .painting img { display: block; width: 100%; height: auto; border: 1.5px solid var(--ink); border-radius: 2px; box-shadow: 0 2px 8px var(--shadow); }
   h1 { font: 400 2rem/1.1 var(--font-display); letter-spacing: .04em; margin: 0; text-wrap: balance; }
+  /* titre = le logo Φ5, centré à côté du tableau, deux fois et demie plus grand que celui de l'en-tête de la fenêtre */
+  h1 .logo { height: 96px; }
   .lead { margin: 0; color: var(--ink-soft); font-style: italic; max-width: 64ch; }
   .card { background: var(--f-card) 0 0 / 100% 100% no-repeat; padding: 14px 18px; display: grid; gap: 10px; min-width: 0; }
   .bar { display: flex; flex-wrap: wrap; gap: 10px 14px; align-items: center; min-width: 0; }
@@ -420,6 +422,7 @@
   /* ---------------- téléphone (375-412 px) : une famille par ligne, onglets en largeur égale */
   @media (max-width: 700px) {
     h1 { font-size: 1.6rem; }
+    h1 .logo { height: 68px; }
     .painting { width: 150px; }
     .card { padding: 12px 14px; }
     .whead { grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "brand preset" "tabs tabs"; padding: 6px 8px 0 10px; gap: 2px 10px; }
@@ -470,7 +473,21 @@
     <figure class="painting">
       <img src="angelo-musicante.jpg" width="640" height="510" alt="A winged child with red-gold curls leans over a golden lute and plucks its strings against a dark background.">
     </figure>
-    <h1>PHY5</h1>
+    <h1>
+      <!-- logo Φ5 (mêmes tracés que celui de l'en-tête de la fenêtre) ; la corde vibre aussi avec le son (app.js) -->
+      <svg class="logo" viewBox="0 0 52 34" role="img" aria-label="PHY5">
+        <path d="M3.5 18a10.5 8.5 0 1 0 21 0a10.5 8.5 0 1 0 -21 0M48 6L37 6L35.5 16C39 13.5 48 14 48 21.5C48 28.5 39 30.5 34 26"/>
+        <path class="g1" transform="translate(0.4 -0.3)" d="M3.5 18a10.5 8.5 0 1 0 21 0a10.5 8.5 0 1 0 -21 0M48 6L37 6L35.5 16C39 13.5 48 14 48 21.5C48 28.5 39 30.5 34 26"/>
+        <path class="g2" transform="translate(-0.5 0.4)" d="M3.5 18a10.5 8.5 0 1 0 21 0a10.5 8.5 0 1 0 -21 0M48 6L37 6L35.5 16C39 13.5 48 14 48 21.5C48 28.5 39 30.5 34 26"/>
+        <g class="rest">
+          <path d="M14 2L14 33"/>
+          <path class="g1" transform="translate(0.4 -0.3)" d="M14 2L14 33"/>
+          <path class="g2" transform="translate(-0.5 0.4)" d="M14 2L14 33"/>
+        </g>
+        <path class="vib" d=""/>
+        <path class="vib" d=""/>
+      </svg>
+    </h1>
   </header>
 
   <section class="card" aria-label="Sound">
