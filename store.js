@@ -55,7 +55,7 @@ function snapshot()
     for (const p of store.params) if (! p.machine) params[p.key] = store.model.get (p.key);
     const routes = store.routes.filter (r => SOURCE_NAMES[r.source] !== undefined)
                                .map (r => ({ source: SOURCE_NAMES[r.source], target: r.target, depth: r.depth, bipolar: r.bipolar }));
-    return JSON.stringify ({ format: 'rezonathor-preset', version: 2, name: '', params, routes });
+    return JSON.stringify ({ format: 'phy5-preset', version: 2, name: '', params, routes });
 }
 
 function commitHistory()

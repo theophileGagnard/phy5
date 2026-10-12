@@ -51,14 +51,31 @@ const ready = (async () =>
 
     $('tempo').value = Math.round (song.bpm);
     $('tempoOut').textContent = `${Math.round (song.bpm)} BPM`;
-    for (const [group, label] of [['factory', 'Factory presets'], ['user', 'User presets']])
+    // Factory : presets sans famille, puis une rubrique par famille (« BELL - Toon toon » -> BELL / Toon toon) ; puis User.
+    // Même règle que le plugin (presetFamily : casse ignorée, pluriel final ôté).
+    const familyOf = (name) =>
     {
+        const cut = name.indexOf (' - ');
+        if (cut <= 0) return '';
+        const f = name.slice (0, cut).toUpperCase();
+        return f.length > 3 && f.endsWith ('S') ? f.slice (0, -1) : f;
+    };
+    const shortName = (name) => { const cut = name.indexOf (' - '); return cut <= 0 ? name : name.slice (cut + 3); };
+    const addGroup = (label, items, text = (p) => p.name) =>
+    {
+        if (! items.length) return;
         const og = document.createElement ('optgroup');
         og.label = label;
-        for (const p of presets.filter (p => p.group === group))
-            og.append (new Option (p.name, p.file));
+        for (const p of items) og.append (new Option (text (p), p.file));
         $('preset').append (og);
-    }
+    };
+    const factory = presets.filter (p => p.group === 'factory');
+    addGroup ('Factory presets', factory.filter (p => ! familyOf (p.name)));
+    const families = [...new Set (factory.map (p => familyOf (p.name)).filter (Boolean))].sort ((a, b) => a.localeCompare (b));
+    for (const fam of families)
+        addGroup (fam, factory.filter (p => familyOf (p.name) === fam).sort ((a, b) => shortName (a.name).localeCompare (shortName (b.name), undefined, { numeric: true })),
+                  (p) => shortName (p.name));
+    addGroup ('User presets', presets.filter (p => p.group === 'user'));
     buildInstrument();
     buildAllParams();
     const start = presets.find (p => p.name === 'Old Luth') ?? presets[0];
