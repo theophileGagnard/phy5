@@ -1,6 +1,6 @@
 {
   "format": "rezonathor-preset",
-  "version": 1,
+  "version": 2,
   "name": "Ghost Piano",
   "params": {
     "decay": 2.2,
@@ -13,7 +13,7 @@
     "combDelaySamples": 3
   },
   "routes": [
-    { "source": "Pitch", "target": "decay", "depth": -0.35, "bipolar": false },
+    { "source": "Pitch", "target": "decay", "depth": -0.175, "bipolar": false },
     { "source": "Pitch", "target": "damp", "depth": 0.2, "bipolar": false }
   ]
 }

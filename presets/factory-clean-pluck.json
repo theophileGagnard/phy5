@@ -1,6 +1,6 @@
 {
   "format": "rezonathor-preset",
-  "version": 1,
+  "version": 2,
   "name": "Clean Pluck",
   "params": {
     "decay": 1.4,

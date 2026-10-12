@@ -1,6 +1,6 @@
 {
   "format": "rezonathor-preset",
-  "version": 1,
+  "version": 2,
   "name": "Dense Granular",
   "params": {
     "decay": 2,
@@ -21,7 +21,8 @@
     "granFilterWidth": 0.6,
     "dryWet": 0.9,
     "modLfoRate2": 0.5,
-    "modLfoWaveform2": 4
+    "modLfoWaveform2": 4,
+    "granFilterOn": 1
   },
   "routes": [
     { "source": "LFO2", "target": "granularG", "depth": 0.15, "bipolar": false },

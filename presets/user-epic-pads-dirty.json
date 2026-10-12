@@ -1,6 +1,6 @@
 {
   "format": "rezonathor-preset",
-  "version": 1,
+  "version": 2,
   "name": "EPIC PADS DIRTY",
   "params": {
     "decay": 1.5000001,
@@ -42,11 +42,11 @@
     "outputGain": 0,
     "distortionCurve": 1,
     "drive": 0,
-    "filterMix": 0,
+    "filterMix": 1,
     "filterMode": 0,
     "filterFreq": 1000,
     "filterWidth": 0.5,
-    "resoFilterMix": 0,
+    "resoFilterMix": 1,
     "resoFilterMode": 0,
     "resoFilterFreq": 4000,
     "resoFilterWidth": 0.5,
@@ -54,7 +54,7 @@
     "granFilterMode": 0,
     "granFilterFreq": 800.00006,
     "granFilterWidth": 0.7,
-    "outputFilterMix": 0,
+    "outputFilterMix": 1,
     "outputFilterMode": 0,
     "outputFilterFreq": 1000,
     "outputFilterWidth": 0.5,
@@ -124,7 +124,11 @@
     "modVelocityInMin": 0,
     "modVelocityInMax": 127,
     "modPitchInMin": 0,
-    "modPitchInMax": 127
+    "modPitchInMax": 127,
+    "filterOn": 0,
+    "resoFilterOn": 0,
+    "granFilterOn": 1,
+    "outputFilterOn": 0
   },
   "routes": []
 }

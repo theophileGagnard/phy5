@@ -1,13 +1,13 @@
 // views.js -- visualiseurs interactifs du plugin, portés en canvas : pad XY des filtres (XYPadComponent.h), vue
-// d'enveloppe à poignées de courbure (EnvelopeShapeView, EnvelopeLayout.h, EnvelopeCurve.h), schéma de la corde
-// (StringSchematicComponent.h), courbe de saturation, forme du LFO, mapping Velocity / Pitch, et le panneau des
-// sources de modulation (tuiles à glisser sur un contrôle).
+// d'enveloppe à poignées de courbure (EnvelopeShapeView, EnvelopeLayout.h, EnvelopeCurve.h), photo du dernier pincement
+// (onglet Exciter), croquis sous DECAY et DAMP, schéma de la corde (StringSchematicComponent.h), courbe de saturation,
+// forme du LFO, mapping Velocity / Pitch, et le panneau des sources de modulation (tuiles à glisser sur un contrôle).
 //
 // Les formules de dessin viennent des en-têtes cités (copiées ici, la page étant en JavaScript) ; celles qui touchent
 // au son (saturation, LFO) sont demandées au moteur WASM (store.model), pour ne rien recopier du DSP.
 
 import { store, param, on, value, real, setNorm, setReal, toNorm, fromNorm, defaultNorm, routesFor, onRoutes, onLive,
-         liveMod, modRange, SOURCES, addRoute, removeRoutesOfSource } from './store.js';
+         liveMod, modRange, SOURCES, addRoute, removeRoutesOfSource, onPluck } from './store.js';
 import { CanvasView, colors, alpha, graphite, hatch, sketchFrame, rng } from './sketch.js';
 import { el, controlLabels } from './widgets.js';
 
@@ -29,17 +29,39 @@ function watch (view, keys)
 // X = fréquence en échelle LOG (20 Hz - 15 kHz), Y = largeur ; la vraie réponse du filtre en fond (FilterResponse.h).
 const kDisperserStages = 6;   // MultiModeFilter::kDisperserStages
 
-// FilterResponse::bandpassMagnitude (formule fermée de la cellule SVF, mode Bandpass)
-function bandpassMagnitude (sr, fcIn, wIn, fIn)
+// Modes des filtres (index du paramètre « ...FilterMode ») : seuls ceux-ci ont une courbe ; Allpass (1) et Disperser (2)
+// ne changent pas le niveau (ligne plate).
+const BANDPASS = 0, LOWPASS = 3, HIGHPASS = 4;
+const shaped = (mode) => mode === BANDPASS || mode === LOWPASS || mode === HIGHPASS;
+const dampingOf = (w) => 0.06 + Math.min (Math.max (w, 0), 1) * 1.94;
+
+// |H| de la cellule SVF, formule fermée (FilterResponse::bandpassMagnitude, MultiModeFilter::magnitudeAt) : prototype
+// analogique, x = fréquence rapportée à la coupure, k = amortissement (Width). Bandpass : k x / den. Lowpass : norm / den ;
+// Highpass : norm x² / den, où norm ramène le pic de résonance à 0 dB (comme le moteur).
+function filterMagnitude (sr, mode, fcIn, wIn, fIn)
 {
     const fc = Math.min (Math.max (fcIn, 20), sr * 0.49);
-    const w = Math.min (Math.max (wIn, 0), 1);
     const f = Math.min (Math.max (fIn, 1e-3), sr * 0.4999);
     const g = Math.tan (Math.PI * fc / sr);
-    const k = 0.06 + w * 1.94;
+    const k = dampingOf (wIn);
     const x = Math.tan (Math.PI * f / sr) / g;
     const d = 1 - x * x;
-    return (k * x) / Math.sqrt (d * d + k * k * x * x);
+    const den = Math.max (Math.sqrt (d * d + k * k * x * x), 1e-12);
+    if (mode === BANDPASS) return (k * x) / den;
+    const norm = k < Math.SQRT2 ? k * Math.sqrt (1 - k * k / 4) : 1;
+    return norm * (mode === LOWPASS ? 1 : x * x) / den;
+}
+
+// Fréquence du sommet (0 dB) de la courbe, ou null s'il n'y en a pas (Lowpass / Highpass peu résonants : pas de pic).
+// Bandpass : la fréquence centrale. Lowpass : x = sqrt (1 - k² / 2) ; Highpass : l'inverse.
+function peakFrequency (sr, mode, fcIn, wIn)
+{
+    const fc = Math.min (Math.max (fcIn, 20), sr * 0.49);
+    if (mode === BANDPASS) return fc;
+    const k = dampingOf (wIn);
+    if (k >= Math.SQRT2) return null;
+    const xp = Math.sqrt (1 - k * k / 2);
+    return Math.atan (Math.tan (Math.PI * fc / sr) * (mode === LOWPASS ? xp : 1 / xp)) * sr / Math.PI;
 }
 
 export class XYPad extends CanvasView
@@ -84,13 +106,15 @@ export class XYPad extends CanvasView
         };
         const pts = [];
         const n = Math.max (16, Math.ceil (b.w / 2));
-        const apex = this.fx (fc);
-        let apexDone = mode !== 0;
+        // sommet à 0 dB ajouté à sa place exacte : un pic étroit (filtre très résonant) tomberait sinon entre deux points
+        const fp = shaped (mode) ? peakFrequency (sr, mode, fc, w) : null;
+        const apex = fp !== null && fp > this.fMin && fp < this.fMax ? this.fx (fp) : null;
+        let apexDone = apex === null;
         for (let i = 0; i <= n; ++i)
         {
             const t = i / n;
             if (! apexDone && apex <= t) { apexDone = true; pts.push ([b.x + apex * b.w, yOf (1)]); }
-            pts.push ([b.x + t * b.w, yOf (mode === 0 ? bandpassMagnitude (sr, fc, w, this.xf (t)) : 1)]);
+            pts.push ([b.x + t * b.w, yOf (shaped (mode) ? filterMagnitude (sr, mode, fc, w, this.xf (t)) : 1)]);
         }
         return pts;
     }
@@ -152,7 +176,7 @@ export class XYPad extends CanvasView
                 this.gf = lf === null ? base : (this.gf ?? lf) + (lf - (this.gf ?? lf)) * 0.35;
                 this.gw = lw === null ? wNorm : (this.gw ?? lw) + (lw - (this.gw ?? lw)) * 0.35;
                 const gfc = fromNorm (k.freq, this.gf), gwr = fromNorm (k.width, this.gw);
-                if (mode === 0)
+                if (shaped (mode))
                 {
                     const pts = this.curve (b, mode, gfc, gwr);
                     ctx.beginPath(); pts.forEach (([x, y], i) => i ? ctx.lineTo (x, y) : ctx.moveTo (x, y));
@@ -336,6 +360,102 @@ export class EnvelopeView extends CanvasView
             ctx.fillStyle = alpha (c.paper, 0.85); ctx.fill();
             ctx.strokeStyle = c.cool; ctx.lineWidth = 1.3; ctx.stroke();
         }
+    }
+}
+
+// ============================================================================ photo du dernier pincement (onglet Exciter)
+// Le signal à la sortie de l'onglet Exciter (après gain, filtre et peigne), capturé par le moteur qui joue (worklet) en
+// colonnes min / max. Tracé au crayon, sans remplissage, amplitude ramenée à la plus grande valeur de la photo.
+// Redessinée seulement quand une nouvelle photo arrive (store.pluck), au changement de thème ou de taille.
+export class PluckView extends CanvasView
+{
+    constructor()
+    {
+        super ('pluckview');
+        this.root.title = 'The last pluck, as it leaves the Exciter (after gain, filter and comb).';
+        this.canvas.setAttribute ('role', 'img');
+        this.canvas.setAttribute ('aria-label', 'Waveform of the last pluck');
+        onPluck (() => this.invalidate());
+    }
+
+    draw (ctx, w, h)
+    {
+        const c = colors(), b = { x: 2, y: 2, w: w - 4, h: h - 4 };
+        sketchFrame (ctx, b.x, b.y, b.w, b.h, 71);
+        const mid = Math.round (b.y + b.h / 2) + 0.5;
+        ctx.strokeStyle = alpha (c.inkFaint, 0.5); ctx.lineWidth = 1;   // ligne de zéro, pâle (visible aussi sur papier sombre)
+        ctx.beginPath(); ctx.moveTo (b.x + 1, mid); ctx.lineTo (b.x + b.w - 1, mid); ctx.stroke();
+
+        const p = store.pluck;
+        if (! p || p.columns < 1) return;
+        const n = p.data.length / 2;   // n minimums puis n maximums
+        const cols = Math.min (p.columns, n);
+        let peak = 0;
+        for (let i = 0; i < cols; ++i) peak = Math.max (peak, Math.abs (p.data[i]), Math.abs (p.data[n + i]));
+        if (! (peak > 1e-9)) return;
+        const amp = b.h / 2 - 6, x0 = b.x + 4, span = b.w - 8;
+        const pts = [];
+        for (let i = 0; i < cols; ++i)
+        {
+            const x = x0 + span * i / (n - 1);
+            pts.push ([x, mid - p.data[i] / peak * amp], [x, mid - p.data[n + i] / peak * amp]);
+        }
+        graphite (ctx, pts, c.warm, 1.2, 17);   // même couleur chaude que dans le plugin (PluckView)
+
+        if (p.windowMs > 0)   // durée couverte par la photo
+        {
+            ctx.fillStyle = c.inkFaint;
+            ctx.font = font (9);
+            ctx.textAlign = 'right'; ctx.textBaseline = 'bottom';
+            ctx.fillText (`${p.windowMs < 10 ? p.windowMs.toFixed (1) : Math.round (p.windowMs)} ms`, b.x + b.w - 5, b.y + b.h - 3);
+        }
+    }
+}
+
+// ============================================================================ croquis sous DECAY et DAMP (famille RESONANCE)
+// Petit dessin dans le style des courbes de filtre (aire hachurée), deux axes fins avec une lettre à chaque bout.
+//   'decay' : amplitude (A) dans le temps (t). y = exp (-t / tau), tau de 0,12 à 0,9 fois la largeur selon le bouton.
+//   'damp'  : fréquences encore présentes (F) dans le temps (t). Leur frontière haute descend : F_max (t) = exp (-t d),
+//             d de 0 (tout reste) à 6 / largeur (seuls les graves restent) : les aigus s'éteignent d'abord.
+// Illustration, pas une mesure : redessiné seulement quand la valeur du bouton change.
+export class DecaySketch extends CanvasView
+{
+    constructor (key, kind)
+    {
+        super ('mini', 62);
+        this.key = key;
+        this.kind = kind;
+        this.root.title = kind === 'decay' ? 'Natural decay of the note over time.' : 'High frequencies fade faster as Damp rises.';
+        this.canvas.setAttribute ('role', 'img');
+        this.canvas.setAttribute ('aria-label', kind === 'decay' ? 'Amplitude over time' : 'Frequencies still present over time');
+        on (key, () => this.invalidate());
+    }
+
+    draw (ctx, w, h)
+    {
+        const c = colors(), decay = this.kind === 'decay';
+        const x0 = 10.5, y0 = h - 9.5, xEnd = w - 2, yEnd = 2;   // origine et bouts des axes
+        const W = xEnd - x0 - 4, H = y0 - yEnd - 4;              // zone du tracé (les axes dépassent un peu)
+        const n = value (this.key).norm;
+        const pts = [];
+        for (let i = 0; i <= 24; ++i)
+        {
+            const t = W * i / 24;
+            const y = decay ? Math.exp (-t / ((0.12 + 0.78 * n) * W)) : Math.exp (-t * n * 6 / W);
+            pts.push ([x0 + t, y0 - y * H]);
+        }
+        const seed = decay ? 81 : 83;
+        hatch (ctx, (cx) => { pts.forEach (([x, y], i) => i ? cx.lineTo (x, y) : cx.moveTo (x, y)); cx.lineTo (x0 + W, y0); cx.lineTo (x0, y0); cx.closePath(); },
+               { x: x0, y: y0 - H, w: W, h: H }, alpha (c.warm, 0.5), 3.4, seed);
+        graphite (ctx, pts, alpha (c.warm, 0.95), 1.4, seed);
+        graphite (ctx, [[x0, yEnd], [x0, y0], [xEnd, y0]], alpha (c.inkSoft, 0.9), 0.9, seed + 1);
+        ctx.fillStyle = c.inkSoft;
+        ctx.font = font (8);
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'top';
+        ctx.fillText (decay ? 'A' : 'F', 4.5, yEnd - 1);
+        ctx.textBaseline = 'bottom';
+        ctx.fillText ('t', xEnd - 3, h + 1);
     }
 }
 

@@ -1,6 +1,6 @@
 {
   "format": "rezonathor-preset",
-  "version": 1,
+  "version": 2,
   "name": "LASER",
   "params": {
     "decay": 2.2,
@@ -42,7 +42,7 @@
     "outputGain": 0,
     "distortionCurve": 0,
     "drive": 0,
-    "filterMix": 0,
+    "filterMix": 1,
     "filterMode": 0,
     "filterFreq": 1000,
     "filterWidth": 0.5,
@@ -54,7 +54,7 @@
     "granFilterMode": 0,
     "granFilterFreq": 800.00006,
     "granFilterWidth": 0.7,
-    "outputFilterMix": 0,
+    "outputFilterMix": 1,
     "outputFilterMode": 0,
     "outputFilterFreq": 1000,
     "outputFilterWidth": 0.5,
@@ -124,10 +124,14 @@
     "modVelocityInMin": 0,
     "modVelocityInMax": 127,
     "modPitchInMin": 0,
-    "modPitchInMax": 127
+    "modPitchInMax": 127,
+    "filterOn": 0,
+    "resoFilterOn": 1,
+    "granFilterOn": 1,
+    "outputFilterOn": 0
   },
   "routes": [
-    { "source": "Pitch", "target": "decay", "depth": -0.35, "bipolar": false },
+    { "source": "Pitch", "target": "decay", "depth": -0.175, "bipolar": false },
     { "source": "Pitch", "target": "damp", "depth": 0.2, "bipolar": false },
     { "source": "Envelope", "target": "bend", "depth": 1, "bipolar": false },
     { "source": "Envelope", "target": "damp", "depth": -0.54, "bipolar": false }

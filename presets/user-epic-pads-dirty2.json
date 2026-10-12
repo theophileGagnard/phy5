@@ -1,6 +1,6 @@
 {
   "format": "rezonathor-preset",
-  "version": 1,
+  "version": 2,
   "name": "EPIC PADS DIRTY2",
   "params": {
     "decay": 3.1510003,
@@ -42,7 +42,7 @@
     "outputGain": 0,
     "distortionCurve": 1,
     "drive": 5.3,
-    "filterMix": 0,
+    "filterMix": 1,
     "filterMode": 0,
     "filterFreq": 1000,
     "filterWidth": 0.5,
@@ -124,7 +124,11 @@
     "modVelocityInMin": 0,
     "modVelocityInMax": 127,
     "modPitchInMin": 0,
-    "modPitchInMax": 127
+    "modPitchInMax": 127,
+    "filterOn": 0,
+    "resoFilterOn": 1,
+    "granFilterOn": 1,
+    "outputFilterOn": 1
   },
   "routes": []
 }

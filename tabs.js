@@ -1,7 +1,7 @@
 // tabs.js -- les cinq onglets du plugin (Source/PluginEditor.cpp, cible SYNTH), famille par famille, dans le même ordre :
-//   Exciter : EXCITER | GAIN | Input Filter | COMB
-//   Gran    : GRAIN | TEXTURE | FEEDBACK | Feedback Filter
-//   Reso    : RESONANCE | BUILD | Loop Filter | POLYCHORD | PITCH | MIDI
+//   Exciter : EXCITER 1 | EXCITER 2 | Input Filter | COMB | PLUCK (photo du dernier pincement)
+//   Grains  : GRAIN | TEXTURE | FEEDBACK | Feedback Filter
+//   Body    : RESONANCE | BUILD | Loop Filter | POLYCHORD | PITCH | MIDI
 //   Output  : Output Filter | SAT | GAIN, puis Oversampling / Max Voices
 //   Mod     : LFO | ENVELOPE | MIDI (+ ROUTES : la liste des routes de modulation, propre à la page)
 // Le synth n'a ni entrée audio ni Dry/Wet : comme dans le plugin (kIsSynth), pas de GATE, pas de MIX.
@@ -10,8 +10,8 @@
 // n'en a pas, une phrase anglaise courte, ou le nom du paramètre).
 
 import { store, param, on, real, value, routesFor, onRoutes } from './store.js';
-import { el, knob, hslider, combo, toggle, controlLabels, routeRow, formatValue } from './widgets.js';
-import { XYPad, EnvelopeView, StringSchematic, SaturationView, LfoView, MappingView } from './views.js';
+import { el, knob, hslider, combo, waveMenu, toggle, controlLabels, routeRow, formatValue } from './widgets.js';
+import { XYPad, EnvelopeView, PluckView, DecaySketch, StringSchematic, SaturationView, LfoView, MappingView } from './views.js';
 
 // clés des paramètres qui ont un contrôle dans les onglets (le reste n'est que dans « Tous les paramètres »)
 export const exposed = new Set();
@@ -40,6 +40,11 @@ function T (key, label, opts = {})
     exposed.add (key);
     return toggle (key, label, { ...opts, tip: tip (key, opts.tip) });
 }
+function W (key, label, opts = {})
+{
+    exposed.add (key);
+    return waveMenu (key, label, { ...opts, tip: tip (key, opts.tip) });
+}
 
 const R = (w) => w.root ?? w;
 function family (title, cls = '')
@@ -58,51 +63,144 @@ function sub (title)   // titre de section de l'onglet Mod (LFO 1, Envelope 2…
 {
     return el ('h4', 'stitle', title);
 }
+function col (...items)   // colonne (un contrôle et ce qui va dessous)
+{
+    const c = el ('div', 'col');
+    c.append (...items.map (R));
+    return c;
+}
 
-// ---------------------------------------------------------------- bloc filtre (Mix, mode, pad XY, Freq / Width)
+// Style « désactivé » (classe dim, celui de Bridge quand NUM = 1) : visible, estompé, toujours manipulable.
+const dim = (e, d) => e.classList.toggle ('dim', d);
+
+// ---------------------------------------------------------------- bloc filtre (interrupteur, Mix, mode, pad XY, Freq / Width)
+// La case à côté du titre (sans libellé) allume ou éteint le filtre (paramètre `<prefix>On`). Éteint, il n'est pas calculé :
+// son titre et tous ses contrôles passent en style désactivé (dimWith ajoute les contrôles annexes du Loop Filter).
+// Freq peut aussi être estompé pour une autre raison (Keytrack du Loop Filter : setFreqIgnored) : les deux se cumulent.
 function filterBlock (title, prefix, opts = {})
 {
-    const keys = { mix: `${prefix}Mix`, mode: `${prefix}Mode`, freq: `${prefix}Freq`, width: `${prefix}Width` };
-    const f = family (title, 'filter');
+    const keys = { on: `${prefix}On`, mix: `${prefix}Mix`, mode: `${prefix}Mode`, freq: `${prefix}Freq`, width: `${prefix}Width` };
+    const f = family ('', 'filter');
+    const head = el ('div', 'fhead');
+    const name = el ('h3', 'ftitle', title);
+    const power = T (keys.on, '', { tip: 'Filter on / off. Off: the filter is not computed.', aria: `${title} on / off` });
+    head.append (name, power.root);
     const caption = el ('p', 'caption', opts.caption ?? '');
     caption.hidden = true;
     const mix = H (keys.mix, 'Mix', { format: opts.mixFormat, parse: opts.mixParse, tip: 'Filter dry/wet (0 = no effect).' });
-    const mode = C (keys.mode, '', { tip: 'Filter mode: Bandpass, Allpass or Disperser.' });
+    const mode = C (keys.mode, '', { tip: 'Filter mode: Bandpass, Allpass, Disperser, Lowpass or Highpass.' });
     mode.root.querySelector ('.lbl').remove();
     const pad = new XYPad (keys);
     const fq = K (keys.freq, 'Freq', 'sec', { tip: 'Centre frequency of the filter.' });
     const wd = K (keys.width, 'Width', 'sec', { tip: 'Width of the band.' });
-    f.append (caption, R (mix), R (mode), pad.root, row ('pair', fq, wd));
-    return { root: f, caption, mix, mode, pad, freq: fq, width: wd };
+    f.append (head, caption, R (mix), R (mode), pad.root, row ('pair', fq, wd));
+
+    // Lowpass / Highpass : Width règle la résonance (le moteur ramène le pic à 0 dB)
+    on (keys.mode, (v) => wd.setTip (Math.round (v.real) >= 3 ? 'Resonance: 0 = very resonant, 1 = soft. The peak is normalised to 0 dB.'
+                                                              : 'Width of the band.'));
+
+    const extra = [mix, mode, wd];   // contrôles à estomper avec le filtre (Freq à part : voir setFreqIgnored)
+    let off = false, freqIgnored = false;
+    const refresh = () =>
+    {
+        dim (name, off);
+        dim (caption, off);
+        dim (pad.root, off);
+        for (const w of extra) w.setDim (off);
+        fq.setDim (off || freqIgnored);
+    };
+    on (keys.on, (v) => { off = v.real < 0.5; refresh(); });
+    return {
+        root: f, caption, mix, mode, pad, freq: fq, width: wd,
+        dimWith (...widgets) { extra.push (...widgets); refresh(); },
+        setFreqIgnored (d) { freqIgnored = d; refresh(); },
+    };
 }
 
 // ================================================================ Exciter
+// Deux sources d'excitation dans UNE famille : les boutons « 1 » / « 2 » à côté du titre choisissent celle qui est
+// affichée (l'autre garde ses réglages et continue de jouer). Une source se lit dans le sens du signal : forme d'onde ->
+// enveloppe (vue, puis Attack / Decay / Sustain / Release en petits curseurs dessous) -> GAIN.
+// Le menu affiche ∅, White, Pink, Sine (index du paramètre : 3, 0, 1, 2). ∅ éteint la source : ses contrôles, son bouton
+// et le titre passent en style désactivé ; le menu, lui, reste normal (c'est lui qui la rallume).
+const WAVE_ORDER = [3, 0, 1, 2], WAVE_OFF = 3;
+
+function exciterSource (name, k, onOff)   // k : { noise, a, d, s, r, ac, dc, rc, gain } (clés des paramètres)
+{
+    const wave = W (k.noise, 'WAVE', { order: WAVE_ORDER, aria: `${name} waveform`, tip: 'Waveform of this excitation source. ∅ switches the source off.' });
+    wave.root.classList.add ('primary');
+    const env = new EnvelopeView ({ a: k.a, d: k.d, s: k.s, r: k.r, ac: k.ac, dc: k.dc, rc: k.rc });
+    [k.ac, k.dc, k.rc].forEach (x => exposed.add (x));
+    const sliders = [H (k.a, 'Attack', { small: true }), H (k.d, 'Decay', { small: true }),
+                     H (k.s, 'Sustain', { small: true, tip: 'Default 0: a plucked burst that dies away over Decay. Above 0: the source stays active while the key is held.' }),
+                     H (k.r, 'Release', { small: true })];
+    const gain = K (k.gain, 'GAIN', 'sec', { tip: 'Level of this excitation source, down to -inf (silent) at the bottom of the range. Modulatable: drop Velocity here for velocity-sensitive plucks.' });
+    const envCol = el ('div', 'exccol');
+    envCol.append (env.root, ...sliders.map (R));
+    const root = el ('div', 'excsrc');
+    root.append (R (wave), envCol, R (gain));
+    on (k.noise, (v) =>
+    {
+        const off = Math.round (v.real) === WAVE_OFF;
+        dim (env.root, off);
+        for (const w of [...sliders, gain]) w.setDim (off);
+        onOff (off);
+    });
+    return root;
+}
+
+function exciterFamily()
+{
+    const KEYS = [{ noise: 'exciterNoise', a: 'exciterAttack', d: 'exciterDecay', s: 'exciterSustain', r: 'exciterRelease',
+                    ac: 'exciterAttackCurve', dc: 'exciterDecayCurve', rc: 'exciterReleaseCurve', gain: 'inputGain' },
+                  { noise: 'exciter2Noise', a: 'exciter2Attack', d: 'exciter2Decay', s: 'exciter2Sustain', r: 'exciter2Release',
+                    ac: 'exciter2AttackCurve', dc: 'exciter2DecayCurve', rc: 'exciter2ReleaseCurve', gain: 'exciter2Gain' }];
+    const f = el ('section', 'family exciter');
+    const head = el ('div', 'fhead');
+    const title = el ('h3', 'ftitle', 'EXCITER');
+    const off = [false, false];
+    let shown = 0;
+    const buttons = KEYS.map ((_, i) =>
+    {
+        const b = el ('button', 'btn small excsel', String (i + 1));
+        b.type = 'button';
+        b.title = i === 0 ? 'Show excitation source 1.' : 'Show excitation source 2 (off by default: pick a waveform to switch it on).';
+        b.setAttribute ('aria-label', `Excitation source ${i + 1}`);
+        return b;
+    });
+    const refresh = () =>
+    {
+        dim (title, off[shown]);
+        buttons.forEach ((b, i) => { dim (b, off[i]); b.setAttribute ('aria-pressed', String (i === shown)); });
+        panels.forEach ((p, i) => { p.hidden = i !== shown; });
+    };
+    const panels = [];
+    KEYS.forEach ((k, i) => panels.push (exciterSource (`EXCITER ${i + 1}`, k, (o) => { off[i] = o; if (panels.length === KEYS.length) refresh(); })));
+    buttons.forEach ((b, i) => { b.onclick = () => { shown = i; refresh(); }; });
+    head.append (title, ...buttons);
+    f.append (head, ...panels);
+    refresh();
+    return f;
+}
+
 function exciterTab()
 {
     const page = [];
 
-    const exc = family ('EXCITER', 'exciter');
-    const noise = C ('exciterNoise', 'NOISE', { tip: 'Colour of the internal noise burst that excites the strings: White (bright) or Pink (softer).' });
-    noise.root.classList.add ('primary');
-    const env = new EnvelopeView ({ a: 'exciterAttack', d: 'exciterDecay', s: 'exciterSustain', r: 'exciterRelease',
-                                    ac: 'exciterAttackCurve', dc: 'exciterDecayCurve', rc: 'exciterReleaseCurve' });
-    ['exciterAttackCurve', 'exciterDecayCurve', 'exciterReleaseCurve'].forEach (k => exposed.add (k));
-    exc.append (row ('top', noise, env.root),
-                row ('', K ('exciterAttack', 'Attack'), K ('exciterDecay', 'Decay'),
-                         K ('exciterSustain', 'Sustain', 'sec', { tip: 'Default 0: a plucked burst that dies away over Decay. Above 0: the Exciter stays active while the key is held.' }),
-                         K ('exciterRelease', 'Release')));
-    page.push (exc);
-
-    const gain = family ('GAIN');
-    gain.append (R (K ('inputGain', 'GAIN', 'prim', { tip: 'Level of the Exciter. Modulatable: drop Velocity here for velocity-sensitive plucks.' })));
-    page.push (gain);
+    page.push (exciterFamily());
 
     page.push (filterBlock ('Input Filter', 'filter').root);
 
     const comb = family ('COMB');
-    comb.append (R (K ('combDelaySamples', 'DELAY', 'prim', { tip: 'Comb filter delay length: tunes the comb resonance applied to the excitation.' })),
-                 R (K ('combFeedback', 'Feedback', 'sec', { tip: 'Comb filter feedback amount.' })));
+    comb.append (row ('', K ('combDelaySamples', 'DELAY', 'prim', { tip: 'Comb filter delay length: tunes the comb resonance applied to the excitation.' }),
+                          K ('combFeedback', 'Feedback', 'sec', { tip: 'Comb filter feedback amount.' })));
     page.push (comb);
+
+    // photo du dernier pincement : ce qui sort de cet onglet (après gain, filtre et peigne) ; prend la place restante
+    const pluck = family ('PLUCK', 'pluck');
+    pluck.querySelector ('.ftitle').title = 'The last pluck, as it leaves the Exciter (after gain, filter and comb).';
+    pluck.append (new PluckView().root);
+    page.push (pluck);
     return page;
 }
 
@@ -152,7 +250,9 @@ function resoTab()
         format: (v) => physical ? `${(store.model.dampRatio (v) * 100).toFixed (1)} %` : formatValue (param ('damp'), v),
         parse: (t) => physical ? store.model.dampFromRatio (parseFloat (t.replace (',', '.')) / 100) : parseFloat (t.replace (',', '.')),
     });
-    res.append (row ('', K ('decay', 'DECAY', 'prim', { tip: 'Ring time of the string, in seconds.' }), damp,
+    // sous chaque bouton, son croquis : l'amplitude (A) puis les fréquences encore présentes (F) dans le temps (t)
+    res.append (row ('', col (K ('decay', 'DECAY', 'prim', { tip: 'Ring time of the string, in seconds.' }), new DecaySketch ('decay', 'decay')),
+                         col (damp, new DecaySketch ('damp', 'damp')),
                          C ('dampMode', 'Damp Mode', { tip: 'Legacy: Damp is a loss per pass of the string (higher notes lose more per second). Physical: Damp sets how fast the high frequencies (around 4 kHz) die compared to Decay, in seconds and the same for every note: 0 = bright (as long as Decay), maximum = dark (1 % of Decay).' })));
     on ('dampMode', (v) =>
     {
@@ -191,8 +291,10 @@ function resoTab()
         mixFormat: (v) => ratio ? store.model.loopRatioFromMix (v).toFixed (2) : formatValue (param ('resoFilterMix'), v),
         mixParse: (t) => ratio ? store.model.loopMixFromRatio (parseFloat (t.replace (',', '.'))) : parseFloat (t.replace (',', '.')),
     });
-    loop.root.append (row ('pair', T ('resoFilterKeytrack', 'Keytrack', { tip: 'Loop Filter keytrack: on = the filter centre follows the played note, locked to the pitch of the note (the Freq setting is ignored), so the filter is always in tune with the string. Off = fixed Freq.' }),
-                                   C ('loopFilterScale', 'Filter Scale', { tip: 'Legacy: Loop Filter Mix is a plain dry/wet. T60: Mix becomes the Out-of-band decay ratio (Bandpass mode; how much faster the frequencies outside the band die, in seconds, whatever the note).' })));
+    const keytrack = T ('resoFilterKeytrack', 'Keytrack', { tip: 'Loop Filter keytrack: on = the filter centre follows the played note, locked to the pitch of the note (the Freq setting is ignored), so the filter is always in tune with the string. Off = fixed Freq.' });
+    const scale = C ('loopFilterScale', 'Filter Scale', { tip: 'Legacy: Loop Filter Mix is a plain dry/wet. T60: Mix becomes the Out-of-band decay ratio (Bandpass mode; how much faster the frequencies outside the band die, in seconds, whatever the note).' });
+    loop.root.append (row ('pair', keytrack, scale));
+    loop.dimWith (keytrack, scale);   // éteints avec le filtre, comme ses autres contrôles
     const refreshLoop = () =>
     {
         ratio = Math.round (real ('loopFilterScale')) === 1 && Math.round (real ('resoFilterMode')) === 0;
@@ -207,7 +309,7 @@ function resoTab()
     on ('resoFilterMode', refreshLoop);
     on ('resoFilterKeytrack', (v) =>
     {
-        loop.freq.setDim (v.real > 0.5);
+        loop.setFreqIgnored (v.real > 0.5);
         loop.freq.setTip (v.real > 0.5 ? 'Ignored while Keytrack is on: the filter is centred on the note being played.' : 'Centre frequency of the Loop Filter.');
     });
     page.push (loop.root);
@@ -230,7 +332,6 @@ function resoTab()
 
     // -- PITCH : trois colonnes (VIBRATO / Speed, PORTAMENTO, BEND / Bend Range)
     const pitch = family ('PITCH', 'pitch');
-    const col = (...w) => { const c = el ('div', 'col'); c.append (...w.map (R)); return c; };
     pitch.append (row ('cols',
         col (K ('vibratoDepth', 'VIBRATO', 'prim', { tip: 'Vibrato depth.' }), K ('vibratoFreq', 'Speed', 'sec', { tip: 'Vibrato speed.' })),
         col (K ('slideTime', 'PORTAMENTO', 'prim', { tip: 'Glide time between two notes.' })),
@@ -380,9 +481,10 @@ function modTab()
 
 export const TABS =
 [
-    { id: 'exciter', label: 'Exciter', build: exciterTab },
-    { id: 'gran',    label: 'Gran',    build: granTab },
-    { id: 'reso',    label: 'Reso',    build: resoTab },
-    { id: 'output',  label: 'Output',  build: outputTab },
-    { id: 'mod',     label: 'Mod',     build: modTab },
+    // tip : rôle de l'onglet dans l'instrument (MÊMES textes que le plugin, PluginEditor.cpp)
+    { id: 'exciter', label: 'Exciter', build: exciterTab, tip: 'The initial energy that feeds the instrument.' },
+    { id: 'gran',    label: 'Grains',  build: granTab,    tip: 'Scatter the energy source' },
+    { id: 'reso',    label: 'Body',    build: resoTab,    tip: 'The vibrating body' },
+    { id: 'output',  label: 'Output',  build: outputTab,  tip: 'Diffusion of the sound' },
+    { id: 'mod',     label: 'Mod',     build: modTab,     tip: 'Not a part of the instrument, useful to modulate parameters over time.' },
 ];

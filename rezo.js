@@ -123,6 +123,8 @@ export class Rezo
     loopMixFromRatio (r)      { return this.ex.rezo_loop_mix_from_ratio (r); }
     granLatencyMs (w, b, s)   { return this.ex.rezo_gran_latency_ms (w, b, s); }
     softClip (curve, db, x)   { return this.ex.rezo_soft_clip (curve, db, x); }
+    // |H| d'un filtre, tout mode (0 Bandpass, 1 Allpass, 2 Disperser, 3 Lowpass, 4 Highpass)
+    filterMagnitude (sr, mode, fc, width, f) { return this.ex.rezo_filter_magnitude (sr, mode, fc, width, f); }
     lfoPreview (wave, depth, smooth, perPeriod = 120)
     {
         const ptr = this.ex.rezo_lfo_preview (wave, depth, smooth, perPeriod);
@@ -159,6 +161,22 @@ export class Rezo
     pitchWheel (value14)    { this.ex.rezo_pitch_wheel (value14); }
     allNotesOff()           { this.ex.rezo_all_notes_off(); }
     activeVoices()          { return this.ex.rezo_active_voices(); }
+
+    // ------------------------------------------------------------ ce qui vit pendant le jeu (moteur qui rend le son)
+    // énergie d'un étage du trajet du son (0 = Exciter, 1 = Grains, 2 = Body, 3 = Output) : crête tenue, linéaire
+    stageLevel (stage)      { return this.ex.rezo_stage_level (stage); }
+
+    // « photo » du dernier pincement (sortie de l'onglet Exciter) : pluckSerial change à chaque nouveau pincement,
+    // pluckColumns avance pendant la capture (0..pluckSize) ; pluckData = pluckSize minimums puis pluckSize maximums (copie)
+    pluckSize()             { return this.ex.rezo_pluck_size(); }
+    pluckSerial()           { return this.ex.rezo_pluck_serial(); }
+    pluckColumns()          { return this.ex.rezo_pluck_columns(); }
+    pluckWindowMs()         { return this.ex.rezo_pluck_window_ms(); }
+    pluckData()
+    {
+        const ptr = this.ex.rezo_pluck_data();
+        return new Float32Array (this.ex.memory.buffer, ptr, 2 * this.pluckSize()).slice();
+    }
 
     // rend n échantillons à partir de offset ; renvoie les deux tampons de sortie (vues sur la mémoire WASM)
     process (offset, n)

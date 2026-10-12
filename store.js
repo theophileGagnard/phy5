@@ -16,12 +16,18 @@ export const store =
     mobile: false,        // limites mobile (8 voix, 2 cordes)
     routes: [],           // [{ source, target, depth, bipolar }]
     live: null,           // dernières valeurs du worklet : { sources[12], mods: Map clé -> norm, velIn, pitchIn }
+    pluck: null,          // « photo » du dernier pincement (worklet) : { serial, columns, windowMs, data }
     send: () => {},       // message vers le worklet (remplacé quand le son démarre)
 };
 
 const listeners = new Map();      // clé -> Set de fonctions (v) => …   v = { real, norm }
 const routeListeners = new Set();  // () => …  (routes changées)
 const liveListeners = new Set();   // () => …  (valeurs en direct reçues)
+const editListeners = new Set();   // () => …  (l'utilisateur a changé le son : paramètre ou route)
+
+// Prévenu à chaque réglage ou route modifiés à la main (pas au chargement d'un preset) : sert à signaler « à enregistrer ».
+export const onEdit = (fn) => editListeners.add (fn);
+const edited = () => { for (const fn of editListeners) fn(); };
 
 export async function initStore (wasmBytes)
 {
@@ -53,6 +59,7 @@ export function setNorm (key, norm)
         notify ('maxVoices');
     }
     notify (key);
+    edited();
 }
 
 // Valeur réelle (saisie au clavier dans une case de valeur) : convertie en normalisée, même chemin que setNorm.
@@ -111,6 +118,7 @@ export function setRoutes (list)
     store.routes = store.model.routes();   // relues : le moteur ignore les routes invalides
     store.send ({ type: 'routes', routes: store.routes });
     for (const fn of routeListeners) fn();
+    edited();
 }
 
 export function addRoute (source, target, depth = 0.5)
@@ -175,3 +183,54 @@ export const onLive = (fn) => liveListeners.add (fn);
 
 // valeur normalisée modulée en direct (null si le son ne tourne pas ou si le paramètre n'est pas modulé)
 export const liveMod = (key) => store.live?.mods.get (key) ?? null;
+
+// ---------------------------------------------------------------- énergie des étages (worklet, ~30 Hz)
+// Les croquis des onglets et la corde du logo s'allument avec l'énergie de leur étage (0 = Exciter, 1 = Grains, 2 = Body,
+// 3 = Output), comme une ampoule derrière un vactrol : niveau affiché g = (dB + 60) / 50 borné à 0..1, montée immédiate,
+// retombée exponentielle (constante de temps GLOW_TAU).
+// Rien ne tourne en permanence : le calcul se fait à l'arrivée des messages du worklet. Silence et tout éteint : rien à
+// faire. Si les messages s'arrêtent alors qu'un étage est encore allumé (son coupé), une minuterie le laisse retomber
+// jusqu'à 0, puis s'arrête.
+const GLOW_TAU = 250;          // ms
+const GLOW_FLOOR = 1 / 64;     // sous le premier pas affiché (1/32) : éteint
+const DARK = [0, 0, 0, 0];
+const glow = [0, 0, 0, 0];
+const glowListeners = new Set();   // (g[4]) => …  (chaque abonné quantifie et ne touche au DOM que si sa valeur change)
+let glowTime = 0, glowTimer = 0;
+
+export const onGlow = (fn) => glowListeners.add (fn);
+
+const glowOf = (level) => level > 0 ? Math.min (1, Math.max (0, (20 * Math.log10 (level) + 60) / 50)) : 0;
+
+function glowStep (targets, alone = false)
+{
+    const now = performance.now();
+    const fall = Math.exp (-(now - glowTime) / GLOW_TAU);
+    glowTime = now;
+    let lit = false;
+    for (let i = 0; i < 4; ++i)
+    {
+        const g = Math.max (targets[i], glow[i] * fall);
+        glow[i] = g < GLOW_FLOOR ? 0 : g;
+        lit ||= glow[i] > 0;
+    }
+    for (const fn of glowListeners) fn (glow);
+    clearTimeout (glowTimer);
+    glowTimer = lit ? setTimeout (() => glowStep (DARK, true), alone ? 33 : 120) : 0;
+}
+
+export function setStages (levels)
+{
+    const targets = levels.map (glowOf);
+    if (! glowTimer && ! targets.some (g => g > 0)) return;
+    glowStep (targets);
+}
+
+// ---------------------------------------------------------------- photo du dernier pincement (worklet, quand elle change)
+const pluckListeners = new Set();
+export const onPluck = (fn) => pluckListeners.add (fn);
+export function setPluck (m)
+{
+    store.pluck = { serial: m.serial, columns: m.columns, windowMs: m.windowMs, data: m.data };
+    for (const fn of pluckListeners) fn();
+}

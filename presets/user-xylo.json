@@ -1,6 +1,6 @@
 {
   "format": "rezonathor-preset",
-  "version": 1,
+  "version": 2,
   "name": "Xylo",
   "params": {
     "decay": 5,
@@ -42,7 +42,7 @@
     "outputGain": 0,
     "distortionCurve": 0,
     "drive": 0,
-    "filterMix": 0,
+    "filterMix": 1,
     "filterMode": 0,
     "filterFreq": 575,
     "filterWidth": 0.6480987,
@@ -50,11 +50,11 @@
     "resoFilterMode": 1,
     "resoFilterFreq": 811,
     "resoFilterWidth": 0.5918168,
-    "granFilterMix": 0,
+    "granFilterMix": 1,
     "granFilterMode": 0,
     "granFilterFreq": 800.00006,
     "granFilterWidth": 0.7,
-    "outputFilterMix": 0,
+    "outputFilterMix": 1,
     "outputFilterMode": 0,
     "outputFilterFreq": 1000,
     "outputFilterWidth": 0.5,
@@ -124,7 +124,11 @@
     "modVelocityInMin": 0,
     "modVelocityInMax": 127,
     "modPitchInMin": 0,
-    "modPitchInMax": 127
+    "modPitchInMax": 127,
+    "filterOn": 0,
+    "resoFilterOn": 1,
+    "granFilterOn": 0,
+    "outputFilterOn": 0
   },
   "routes": []
 }

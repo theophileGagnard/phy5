@@ -282,55 +282,79 @@ export function applySkin()
 }
 
 // ---------------------------------------------------------------- croquis des onglets
-// Un petit dessin par onglet (boîte de 30 x 24) : bruit qui s'éteint (Exciter), nuage de grains (Gran), corde qui vibre
-// (Reso), haut-parleur (Output), période de LFO (Mod). Les MÊMES tracés que le plugin (RezonathorLookAndFeel.h,
-// tabSketchPath) : les modifier aux deux endroits. Reliés de gauche à droite par des liaisons (CSS .link), sauf Mod.
+// Un petit dessin par onglet (boîte de 30 x 24, sauf Body : 66 x 24) : bruit qui s'éteint (Exciter), nuage de grains
+// (Grains), corde qui vibre (Body), haut-parleur (Output), période de LFO (Mod). Les MÊMES tracés que le plugin
+// (RezonathorLookAndFeel.h, tabSketchPath) : les modifier aux deux endroits. Reliés de gauche à droite par des liaisons
+// (CSS .link), sauf Mod.
 const TAB_SKETCHES = [
     'M1 12L3 4L5 20L7 6L9 18L11 8L13 16L15 10L17 14L19 11L21 13L23 12L29 12',
-    null,   // Gran : voir GRAINS (le nombre de grains suit AMOUNT)
-    null,   // Reso : voir RESO_SKETCHES (suit le slider TYPE)
+    null,   // Grains : voir GRAINS (le nombre de grains suit AMOUNT)
+    null,   // Body : voir RESO_SKETCHES (suit le slider TYPE)
     'M3 9L8 9L14 4L14 20L8 15L3 15ZM18 8Q21 12 18 16M21 5Q26 12 21 19',
     'M1 12C4 2 8 2 11 12C14 22 18 22 21 12C24 2 27 2 29 8',
 ];
 
-// Gran : le nuage compte plus ou moins de grains selon AMOUNT (granularB, 0..1) : 2 grains à 0, 15 à 1. Mêmes grains, dans
+// Grains : le nuage compte plus ou moins de grains selon AMOUNT (granularB, 0..1) : 2 grains à 0, 15 à 1. Mêmes grains, dans
 // le même ordre, que le plugin (grainsPath) : un préfixe de la liste est déjà bien réparti.
 const GRAINS = [[15, 12], [8, 15], [22, 9], [19, 18], [11, 7], [25, 16], [12, 19], [20, 5], [5, 11], [17, 8], [7, 20], [23, 13],
                 [14, 15], [27, 8], [10, 11]];
 export const grainsFor = (amount) => Math.min (15, Math.max (2, 2 + Math.round (amount * 13)));
 const grainsPath = (n) => GRAINS.slice (0, n).map (([x, y]) => `M${x} ${y}l.9 0`).join ('');
 
-// Reso suit le slider TYPE (blend), dans le style du schéma de la corde : corde nette (sillet, chevalet, micro), corde
-// chaotique (tremblement), tube (contour double hachuré). Mêmes tracés que le plugin (resoPaths).
+// Body suit le slider TYPE (blend), dans le style du schéma de la corde, sur une boîte LARGE (66 x 24) : corde nette
+// (sillet, chevalet, micro), corde chaotique (tremblement), tube (contour double hachuré). Mêmes tracés que le plugin
+// (resoPaths).
 const RESO_SKETCHES = [
-    'M3 4L3 20M27 4L27 20M3 12L27 12M12 12a2.4 2.4 0 1 0 4.8 0a2.4 2.4 0 1 0 -4.8 0',
-    'M3 4L3 20M27 4L27 20M3 12L6 9L8 15L11 7L13 16L16 8L18 15L21 9L23 14L27 12',
-    'M3 4L3 20M27 4L27 20M3 8L27 8M3 16L27 16M8 8L6 16M13 8L11 16M18 8L16 16M23 8L21 16',
+    'M3 4L3 20M63 4L63 20M3 12L63 12M30 12a3 3 0 1 0 6 0a3 3 0 1 0 -6 0',
+    'M3 4L3 20M63 4L63 20M3 12L7 9L10 15L14 7L18 16L22 8L26 15L30 6L34 17L38 8L42 15L46 9L50 15L54 10L58 13L63 12',
+    'M3 4L3 20M63 4L63 20M3 8L63 8M3 16L63 16M10 8L8 16M18 8L16 16M26 8L24 16M34 8L32 16M42 8L40 16M50 8L48 16M58 8L56 16',
 ];
+const RESO_TAB = 2;   // rang de l'onglet Body dans TABS (tabs.js)
 export const resoVariant = (blendNorm) => blendNorm < 0.34 ? 0 : blendNorm < 0.67 ? 1 : 2;
 
-// svg d'un croquis d'onglet : trait net + deux passages plus pâles, légèrement décalés (strokeGraphite)
-export function tabSketch (index)
+// Dessin au crayon en SVG : un trait net + deux passages plus pâles, légèrement décalés (strokeGraphite). Le style
+// (couleur, épaisseurs) est donné par la classe CSS ; `halo` ajoute dessous un trait large (énergie de l'onglet).
+function pencilSvg (w, h, d, cls, halo = false)
 {
-    const s = svg ('svg', { viewBox: '0 0 30 24', class: 'tsketch', 'aria-hidden': 'true' });
-    const d = index === 1 ? grainsPath (15) : TAB_SKETCHES[index] ?? RESO_SKETCHES[0];
+    const s = svg ('svg', { viewBox: `0 0 ${w} ${h}`, class: cls, 'aria-hidden': 'true' });
+    if (halo) svg ('path', { d, class: 'halo' }, s);
     svg ('path', { d }, s);
     svg ('path', { d, class: 'g1', transform: 'translate(0.4 -0.3)' }, s);
     svg ('path', { d, class: 'g2', transform: 'translate(-0.5 0.4)' }, s);
     return s;
 }
 
-// change le dessin de l'onglet Reso (variante 0 corde, 1 chaos, 2 tube)
+// svg d'un croquis d'onglet. Le halo (trait large, couleur chaude) n'apparaît qu'avec l'énergie de l'étage : son opacité et
+// la couleur du trait suivent la variable CSS --glow posée sur l'onglet (app.js).
+export function tabSketch (index)
+{
+    const wide = index === RESO_TAB;
+    const d = index === 1 ? grainsPath (15) : TAB_SKETCHES[index] ?? RESO_SKETCHES[0];
+    return pencilSvg (wide ? 66 : 30, 24, d, wide ? 'tsketch wide' : 'tsketch', true);
+}
+
+// change le dessin de l'onglet Body (variante 0 corde, 1 chaos, 2 tube)
 export function setResoSketch (svgEl, variant)
 {
     for (const p of svgEl.querySelectorAll ('path')) p.setAttribute ('d', RESO_SKETCHES[variant]);
 }
 
-// change le nombre de grains du croquis de l'onglet Gran
+// change le nombre de grains du croquis de l'onglet Grains
 export function setGranSketch (svgEl, amount)
 {
     for (const p of svgEl.querySelectorAll ('path')) p.setAttribute ('d', grainsPath (grainsFor (amount)));
 }
+
+// ---------------------------------------------------------------- formes d'onde des sources de l'Exciter
+// Petit dessin (boîte de 24 x 12) à droite de chaque nom du menu de forme d'onde, par index du paramètre exciterNoise :
+// 0 White, 1 Pink, 2 Sine, 3 Off (« ∅ » : aucun dessin). MÊMES tracés que le plugin.
+const WAVE_SKETCHES = [
+    'M1 6L2.5 2L4 9L5.5 4L7 11L8.5 3L10 8L11.5 1L13 10L14.5 5L16 9L17.5 2L19 11L20.5 4L22 7L23 6',
+    'M1 6L3 3.5L5 5L7.5 2L10 7L12 6L14.5 10L17 8.5L19 4.5L21 6.5L23 5',
+    'M1 6C5 -2 8 -2 12 6C16 14 19 14 23 6',
+    null,
+];
+export const waveSketch = (index) => WAVE_SKETCHES[index] ? pencilSvg (24, 12, WAVE_SKETCHES[index], 'wave') : null;
 
 // ---------------------------------------------------------------- planificateur de dessin
 const views = new Set();     // toutes les vues canvas

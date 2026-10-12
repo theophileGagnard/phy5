@@ -1,8 +1,8 @@
 // app.js -- page de la démo : chargement, presets, onglets façon plugin, son (AudioWorklet), morceau, clavier,
 // « Tous les paramètres », banc CPU. Le son est dans worklet.js ; l'état de l'interface dans store.js.
 
-import { store, initStore, param, on, real, setNorm, applyPresetText, fullState, setLive } from './store.js';
-import { el, formatValue, controlLabels, closeRoutes } from './widgets.js';
+import { store, initStore, param, on, real, setNorm, applyPresetText, fullState, setLive, onEdit, setStages, onGlow, setPluck } from './store.js';
+import { el, formatValue, choiceText, controlLabels, closeRoutes } from './widgets.js';
 import { modPanel } from './views.js';
 import { watchTheme, invalidateAll, tabSketch, setResoSketch, resoVariant, setGranSketch } from './sketch.js';
 import { TABS, exposed } from './tabs.js';
@@ -72,6 +72,10 @@ const ready = (async () =>
 ready.catch ((err) => { $('loading').textContent = `Loading failed: ${err.message}`; });
 
 // ---------------------------------------------------------------- l'instrument : en-tête, onglets, panneau de modulation
+// Étage du moteur dont l'énergie allume le croquis de chaque onglet (Mod n'est pas sur le trajet du son : rien).
+const TAB_STAGE = { exciter: 0, gran: 1, reso: 2, output: 3 };
+const GLOW_STEPS = 32;   // pas d'affichage de l'énergie : on ne touche au DOM que si la valeur quantifiée a changé
+
 function buildInstrument()
 {
     const tabbar = $('tabs');
@@ -87,8 +91,20 @@ function buildInstrument()
         if (i < last - 1) b.append (el ('span', 'link r'));
         if (t.id === 'reso') on ('blend', (v) => setResoSketch (sketch, resoVariant (v.norm)));   // corde / chaos / tube
         if (t.id === 'gran') on ('granularB', (v) => setGranSketch (sketch, v.norm));   // plus de grains quand AMOUNT monte
+        if (t.id in TAB_STAGE)   // le croquis s'allume avec l'énergie de son étage (CSS : --glow, de 0 à 1)
+        {
+            let shown = 0;
+            onGlow ((g) =>
+            {
+                const q = Math.round (g[TAB_STAGE[t.id]] * GLOW_STEPS);
+                if (q === shown) return;
+                shown = q;
+                b.style.setProperty ('--glow', String (q / GLOW_STEPS));
+            });
+        }
         b.type = 'button';
         b.id = `tab-${t.id}`;
+        b.title = t.tip;
         b.setAttribute ('role', 'tab');
         b.setAttribute ('aria-controls', `page-${t.id}`);
         const page = el ('div', 'page');
@@ -166,6 +182,21 @@ function buildInstrument()
 
     $('modpanel').replaceWith (modPanel (openSection));
 
+    // logo : la corde du Φ vibre avec l'énergie de la sortie (même niveau que l'onglet Output). Deux arcs symétriques
+    // d'écart a = 5 g px à la place du trait droit ; les tracés ne changent que si a, par pas de 0,25 px, a changé.
+    const logo = $('logo'), arcs = logo.querySelectorAll ('.vib');
+    let bow = 0;
+    onGlow ((g) =>
+    {
+        const a = Math.round (5 * g[TAB_STAGE.output] / 0.25) * 0.25;
+        if (a === bow) return;
+        bow = a;
+        logo.classList.toggle ('vibrating', a > 0);
+        if (a <= 0) return;
+        arcs[0].setAttribute ('d', `M14 2Q${14 + a} 17.5 14 33`);
+        arcs[1].setAttribute ('d', `M14 2Q${14 - a} 17.5 14 33`);
+    });
+
     // voix actives / voix max (comme l'en-tête du plugin)
     on ('maxVoices', () => showVoices());
 }
@@ -193,10 +224,12 @@ function openSection (src)
 
 // ---------------------------------------------------------------- tous les paramètres (générés depuis la table du Core)
 // Repli pour tout ce que les onglets n'exposent pas : un paramètre ajouté au Core apparaît ici sans rien changer.
+// Une section commence au paramètre nommé et court jusqu'à la suivante, dans l'ordre de la table du Core.
 const SECTIONS = [
     ['decay', 'Resonator'], ['release', 'Voices and strings'], ['granularB', 'Granular'], ['gateMs', 'Gate, gains, distortion'],
     ['filterMix', 'Filters'], ['combFeedback', 'Input comb and output'], ['modRetrigger', 'Modulation'],
     ['exciterMix', 'Exciter and polyphony'], ['exciterAttackCurve', 'Envelope curves'], ['modLfoEnabled3', 'LFO 3 and 4, modulation settings'],
+    ['limiter', 'Limiter'], ['filterOn', 'Filter switches'], ['exciter2Noise', 'Exciter 2'],
 ];
 
 function buildAllParams()
@@ -235,7 +268,7 @@ function paramRow (p)
     if (p.kind === 'choice')
     {
         input = el ('select');
-        p.choices.forEach ((c, i) => input.append (new Option (c, i)));
+        p.choices.forEach ((c, i) => input.append (new Option (choiceText (p, i), i)));
         input.onchange = () => setNorm (p.key, p.choices.length > 1 ? +input.value / (p.choices.length - 1) : 0);
     }
     else if (p.kind === 'bool')
@@ -263,17 +296,38 @@ function paramRow (p)
 }
 
 // ---------------------------------------------------------------- presets
+// Preset modifié : une entrée temporaire « Nom (edited) » prend la sélection du menu. Re-choisir le preset d'origine dans
+// la liste est alors un vrai changement de sélection (un <select> ne signale pas qu'on re-choisit l'entrée déjà
+// affichée) : il est rechargé tel qu'enregistré.
+const EDITED = '__edited';
+let loadedPreset = null;   // valeur de l'option réellement chargée
+const loadedOption = () => [...$('preset').options].find (o => o.value === loadedPreset) ?? null;
+const clearEdited = () => $('preset').querySelector (`option[value="${EDITED}"]`)?.remove();
+function markEdited()
+{
+    const o = loadedOption();
+    if (! o || $('preset').value === EDITED) return;
+    $('preset').prepend (new Option (`${o.text} (edited)`, EDITED));
+    $('preset').value = EDITED;
+}
+
 async function loadPreset()
 {
-    const v = $('preset').value;
+    let v = $('preset').value;
+    if (v === EDITED) v = loadedPreset;   // rechargement demandé par la page (limites mobile) : le preset d'origine
+    loadedPreset = v;
+    clearEdited();
+    $('preset').value = v;
     presetText = v.startsWith ('community:') ? JSON.stringify (communityPresets.get (v)?.preset ?? {})
                                              : await fetch (v).then (r => r.text());
     const { error, limits } = applyPresetText (presetText);
+    $('saveBtn').classList.remove ('blink');   // son tel qu'enregistré : rien à sauver
     $('status').classList.toggle ('warn', !! error);
     // succès : aucun message (la ligne d'état n'apparaît que pour une erreur ou un enregistrement)
     $('status').textContent = error ? `Preset rejected: ${error}` : '';
 }
 $('preset').onchange = loadPreset;
+onEdit (() => { $('saveBtn').classList.add ('blink'); markEdited(); });   // SAVE!! ne clignote qu'après le premier changement
 
 $('mobile').onchange = () =>
 {
@@ -336,7 +390,12 @@ function onWorkletMessage (e)
         $('level').textContent = m.peak > 0 ? `${(20 * Math.log10 (m.peak)).toFixed (1)} dB` : '−∞';
     }
     else if (m.type === 'mod')
+    {
         setLive (m);
+        if (m.stages) setStages (m.stages);   // énergie des étages : croquis des onglets, corde du logo
+    }
+    else if (m.type === 'pluck')
+        setPluck (m);           // nouvelle photo du pincement (vue PLUCK)
 }
 
 $('play').onclick = async () =>
@@ -422,7 +481,7 @@ $('bench').onclick = async () =>
     worker.onmessage = (e) =>
     {
         const { percent, strings } = e.data;
-        const name = $('preset').selectedOptions[0].text;
+        const name = (loadedOption() ?? $('preset').selectedOptions[0]).text;
         $('benchOut').textContent = `${name}${$('mobile').checked ? ' (mobile limits)' : ''}, ${strings} string(s): `
             + `${percent.toFixed (1)} % of real time on one core. Below ~60 %, the sound plays without crackles.`;
         $('bench').disabled = false;
@@ -454,6 +513,7 @@ async function refreshCommunity (select = null)
     }
     const current = $('preset').value;
     $('preset').append (og);
+    if (select) { clearEdited(); loadedPreset = select; }   // preset tout juste enregistré : le son courant est le sien
     $('preset').value = select ?? current;
 }
 
@@ -494,7 +554,7 @@ async function refreshCommunity (select = null)
 
     async function fillName()
     {
-        const sel = $('preset').selectedOptions[0];
+        const sel = loadedOption() ?? $('preset').selectedOptions[0];
         const fallback = sel && ! sel.value.startsWith ('community:') ? sel.text : 'My preset';
         $('presetName').value = fallback;
         try { const m = await community.mine(); if (m) { $('presetName').value = m.name; $('signedText').textContent += ` Your current preset: “${m.name}”.`; } }
@@ -550,6 +610,7 @@ async function refreshCommunity (select = null)
             const mineRow = rows.find (r => r.username === me);
             await refreshCommunity (mineRow ? `community:${mineRow.user_id}` : null);
             dlg.close();
+            $('saveBtn').classList.remove ('blink');
             $('status').classList.remove ('warn');
             $('status').textContent = `Saved “${name}”: everyone can now load it from the preset menu (Community).`;
         }

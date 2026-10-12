@@ -1,6 +1,6 @@
 {
   "format": "rezonathor-preset",
-  "version": 1,
+  "version": 2,
   "name": "Extreme Dispersion",
   "params": {
     "decay": 2.5,
@@ -20,7 +20,9 @@
     "outputFilterFreq": 3000,
     "outputFilterWidth": 0.9,
     "modLfoRate": 0.4,
-    "modLfoWaveform": 1
+    "modLfoWaveform": 1,
+    "resoFilterOn": 1,
+    "outputFilterOn": 1
   },
   "routes": [
     { "source": "LFO", "target": "resoFilterFreq", "depth": 0.4, "bipolar": false }

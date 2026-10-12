@@ -1,6 +1,6 @@
 {
   "format": "rezonathor-preset",
-  "version": 1,
+  "version": 2,
   "name": "PHY52",
   "params": {
     "decay": 2.584,
@@ -42,11 +42,11 @@
     "outputGain": 0,
     "distortionCurve": 1,
     "drive": 15.6,
-    "filterMix": 0,
+    "filterMix": 1,
     "filterMode": 0,
     "filterFreq": 1000,
     "filterWidth": 0.5,
-    "resoFilterMix": 0,
+    "resoFilterMix": 1,
     "resoFilterMode": 0,
     "resoFilterFreq": 4000,
     "resoFilterWidth": 0.5,
@@ -124,7 +124,11 @@
     "modVelocityInMin": 0,
     "modVelocityInMax": 127,
     "modPitchInMin": 0,
-    "modPitchInMax": 127
+    "modPitchInMax": 127,
+    "filterOn": 0,
+    "resoFilterOn": 0,
+    "granFilterOn": 1,
+    "outputFilterOn": 1
   },
   "routes": [
     { "source": "Velocity", "target": "damp", "depth": -0.38, "bipolar": true }

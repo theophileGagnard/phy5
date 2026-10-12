@@ -2,7 +2,8 @@
 // Les notes (morceau MIDI et clavier) sont appliquées ICI, à l'échantillon près : le bloc est découpé à chaque événement.
 // La page garde sa propre copie du moteur (modèle de l'interface, sans son) et envoie ici les mêmes changements ; ce thread
 // lui renvoie seulement ce qui vit pendant le jeu : niveau, voix, et ~30 fois par seconde les valeurs des sources de
-// modulation et des paramètres modulés (marqueurs bleu-vert de l'interface).
+// modulation et des paramètres modulés (marqueurs bleu-vert de l'interface), l'énergie des quatre étages (croquis des
+// onglets, logo) et, quand elle change, la « photo » du dernier pincement (vue PLUCK de l'onglet Exciter).
 import { Rezo, applyMobileLimits } from './rezo.js';
 
 class RezoProcessor extends AudioWorkletProcessor
@@ -27,6 +28,8 @@ class RezoProcessor extends AudioWorkletProcessor
         this.modCountdown = 0;
         this.modTargets = [];   // identifiants des paramètres visés par une route (relus après preset / routes)
         this.modSources = new Float32Array (12);
+        this.pluckSerial = this.rezo.pluckSerial();     // dernière photo du pincement envoyée à la page
+        this.pluckColumns = this.rezo.pluckColumns();
 
         this.port.onmessage = (e) => this.onMessage (e.data);
         this.port.postMessage ({ type: 'ready', params: this.rezo.params, values: this.snapshot() });
@@ -169,8 +172,18 @@ class RezoProcessor extends AudioWorkletProcessor
             this.modCountdown = Math.max (1, Math.round (sampleRate / n / 30));   // ~30 fois par seconde
             for (let i = 0; i < 12; ++i) this.modSources[i] = this.rezo.modSourceValue (i);
             const mods = this.modTargets.map (k => [k, this.rezo.modulatedNormalized (k)]);
-            this.port.postMessage ({ type: 'mod', sources: Array.from (this.modSources), mods,
+            // stages : énergie des quatre étages (Exciter, Grains, Body, Output), pour les croquis des onglets et le logo
+            const stages = [0, 1, 2, 3].map (i => this.rezo.stageLevel (i));
+            this.port.postMessage ({ type: 'mod', sources: Array.from (this.modSources), mods, stages,
                                      velIn: this.rezo.modInputDisplay (0), pitchIn: this.rezo.modInputDisplay (1) });
+            // photo du dernier pincement : envoyée seulement quand elle a changé (nouveau pincement, ou capture qui avance)
+            const serial = this.rezo.pluckSerial(), columns = this.rezo.pluckColumns();
+            if (serial !== this.pluckSerial || columns !== this.pluckColumns)
+            {
+                this.pluckSerial = serial;
+                this.pluckColumns = columns;
+                this.port.postMessage ({ type: 'pluck', serial, columns, windowMs: this.rezo.pluckWindowMs(), data: this.rezo.pluckData() });
+            }
         }
         return true;
     }

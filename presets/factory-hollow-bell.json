@@ -1,6 +1,6 @@
 {
   "format": "rezonathor-preset",
-  "version": 1,
+  "version": 2,
   "name": "Hollow Bell",
   "params": {
     "decay": 3.5,
@@ -18,7 +18,8 @@
     "modEnvDecay": 300,
     "modEnvSustain": 0,
     "modEnvRelease": 810,
-    "modEnvReleaseCurve": 0.3
+    "modEnvReleaseCurve": 0.3,
+    "resoFilterOn": 1
   },
   "routes": [
     { "source": "Envelope", "target": "bend", "depth": 0.03, "bipolar": false }

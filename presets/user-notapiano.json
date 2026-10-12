@@ -1,6 +1,6 @@
 {
   "format": "rezonathor-preset",
-  "version": 1,
+  "version": 2,
   "name": "NotAPiano",
   "params": {
     "decay": 5,
@@ -42,19 +42,19 @@
     "outputGain": 0,
     "distortionCurve": 1,
     "drive": 0,
-    "filterMix": 0,
+    "filterMix": 1,
     "filterMode": 0,
     "filterFreq": 71,
     "filterWidth": 0.45507812,
-    "resoFilterMix": 0,
+    "resoFilterMix": 1,
     "resoFilterMode": 0,
     "resoFilterFreq": 4006,
     "resoFilterWidth": 0.5,
-    "granFilterMix": 0,
+    "granFilterMix": 1,
     "granFilterMode": 0,
     "granFilterFreq": 101,
     "granFilterWidth": 0,
-    "outputFilterMix": 0,
+    "outputFilterMix": 1,
     "outputFilterMode": 0,
     "outputFilterFreq": 1000,
     "outputFilterWidth": 0.5,
@@ -124,10 +124,14 @@
     "modVelocityInMin": 0,
     "modVelocityInMax": 127,
     "modPitchInMin": 0,
-    "modPitchInMax": 127
+    "modPitchInMax": 127,
+    "filterOn": 0,
+    "resoFilterOn": 0,
+    "granFilterOn": 0,
+    "outputFilterOn": 0
   },
   "routes": [
-    { "source": "Velocity", "target": "inputGain", "depth": 0.3, "bipolar": false },
+    { "source": "Velocity", "target": "inputGain", "depth": 0.15, "bipolar": false },
     { "source": "Velocity", "target": "damp", "depth": -0.23, "bipolar": false }
   ]
 }

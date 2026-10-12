@@ -7,7 +7,7 @@
 
 import { store, param, on, value, setNorm, setReal, defaultNorm, fromNorm, routesFor, onRoutes, onLive, liveMod,
          modRange, updateRoute, removeRoute, sourceInfo } from './store.js';
-import { svg, rng, hashString, wobblyCirclePath } from './sketch.js';
+import { svg, rng, hashString, wobblyCirclePath, waveSketch } from './sketch.js';
 
 // ---------------------------------------------------------------- DOM
 export function el (tag, cls = '', text = '')
@@ -22,17 +22,24 @@ export function el (tag, cls = '', text = '')
 // Les choix s'affichent avec les noms du plugin (ceux du Core, sauvegardés dans les presets) ; les valeurs comme la case
 // de texte des sliders JUCE (AudioParameterFloat::getText) : décimales tirées du pas du paramètre (« decimals », calculé
 // par web_api.cpp), entiers sans décimale, et pas d'unité.
+// Exception : le choix « Off » d'une source de l'Exciter (source éteinte) s'affiche « ∅ ».
 export const choiceLabel = (c) => c;
+const CHOICE_TEXT = { exciterNoise: { Off: '∅' }, exciter2Noise: { Off: '∅' } };
+export const choiceText = (p, i) => CHOICE_TEXT[p.key]?.[p.choices[i]] ?? choiceLabel (p.choices[i]);
 
 export function formatValue (p, real)
 {
-    if (p.kind === 'choice') return choiceLabel (p.choices[Math.round (real)] ?? String (real));
+    if (p.kind === 'choice') return p.choices[Math.round (real)] !== undefined ? choiceText (p, Math.round (real)) : String (real);
     if (p.kind === 'bool') return real > 0.5 ? 'On' : 'Off';
     if (p.kind === 'int') return String (Math.round (real));
+    if (GAIN_FLOOR_KEYS.has (p.key) && real <= p.min + 0.005) return '-inf';   // bas de la plage : source coupée
     return real.toFixed (p.decimals ?? 7);
 }
+// gains des sources d'excitation : leur minimum (-72 dB) est un vrai silence (Rezo::isGainFloor)
+const GAIN_FLOOR_KEYS = new Set (['inputGain', 'exciter2Gain']);
 
-const parseNumber = (text) => parseFloat (String (text).replace (',', '.').replace (/[^0-9eE+\-.]/g, ''));
+const parseNumber = (text) => /^\s*-\s*inf/i.test (String (text)) ? -1e9   // « -inf » : ramené au minimum de la plage
+                              : parseFloat (String (text).replace (',', '.').replace (/[^0-9eE+\-.]/g, ''));
 
 // ---------------------------------------------------------------- géométrie des boutons rotatifs
 // Angles de JUCE (slider rotatif par défaut) : de 1,2 pi à 2,8 pi, comptés depuis midi dans le sens horaire.
@@ -339,7 +346,7 @@ export function combo (key, label, opts = {})
     sel.id = `c_${key}`;
     lab.htmlFor = sel.id;
     lab.title = sel.title = opts.tip ?? p.name;
-    p.choices.forEach ((c, i) => sel.append (new Option (opts.labels?.[i] ?? choiceLabel (c), i)));
+    p.choices.forEach ((c, i) => sel.append (new Option (opts.labels?.[i] ?? choiceText (p, i), i)));
     wrap.append (sel);
     root.append (lab, wrap);
     sel.addEventListener ('change', () => setNorm (key, p.choices.length > 1 ? +sel.value / (p.choices.length - 1) : 0));
@@ -347,18 +354,134 @@ export function combo (key, label, opts = {})
     return { root, select: sel, setDim (d) { root.classList.toggle ('dim', d); } };
 }
 
+// ---------------------------------------------------------------- menu de forme d'onde (sources de l'Exciter)
+// Un <select> natif ne peut pas contenir de dessin : petit menu maison (bouton + liste), au même aspect que les autres
+// menus, avec la forme d'onde au crayon à droite de chaque nom, dans la liste comme sur le bouton fermé.
+// opts.order : ordre d'AFFICHAGE des choix (index du paramètre) ; la valeur du paramètre, elle, ne change pas.
+// opts.aria : nom du menu pour les lecteurs d'écran (deux menus peuvent porter le même libellé visible).
+// Clavier (le focus reste sur le bouton) : flèches, Début / Fin, Entrée ou Espace pour choisir, Échap pour refermer.
+export function waveMenu (key, label, opts = {})
+{
+    const p = param (key);
+    const order = opts.order ?? p.choices.map ((c, i) => i);
+    const root = el ('div', 'ctl combo');
+    const lab = el ('label', 'lbl', label);
+    const wrap = el ('span', 'select wmenu');
+    const btn = el ('button', 'wbtn');
+    btn.type = 'button';
+    btn.id = `w_${key}`;
+    lab.htmlFor = btn.id;
+    lab.title = btn.title = opts.tip ?? p.name;
+    const list = el ('ul', 'wlist');
+    list.id = `${btn.id}_list`;
+    list.hidden = true;
+    list.setAttribute ('role', 'listbox');
+    list.setAttribute ('aria-label', opts.aria ?? (label || p.name));
+    btn.setAttribute ('role', 'combobox');
+    btn.setAttribute ('aria-haspopup', 'listbox');
+    btn.setAttribute ('aria-controls', list.id);
+    btn.setAttribute ('aria-expanded', 'false');
+    if (opts.aria || ! label) btn.setAttribute ('aria-label', opts.aria ?? p.name);   // nom lu par les lecteurs d'écran
+
+    // contenu d'une ligne : le nom, puis sa forme d'onde (rien pour « ∅ »)
+    const content = (i) =>
+    {
+        const out = [el ('span', 'wname', choiceText (p, i))];
+        const w = waveSketch (i);
+        if (w) out.push (w);
+        return out;
+    };
+    const items = order.map ((i) =>
+    {
+        const li = el ('li', 'wopt');
+        li.id = `${list.id}_${i}`;
+        li.dataset.index = i;
+        li.setAttribute ('role', 'option');
+        li.append (...content (i));
+        list.append (li);
+        return li;
+    });
+    wrap.append (btn, list);
+    root.append (lab, wrap);
+
+    let current = 0, active = 0;   // rangs dans `order` : choix du paramètre, ligne surlignée
+    const isOpen = () => ! list.hidden;
+    const setActive = (r) =>
+    {
+        active = Math.min (items.length - 1, Math.max (0, r));
+        items.forEach ((li, j) => li.classList.toggle ('active', j === active));
+        btn.setAttribute ('aria-activedescendant', items[active].id);
+    };
+    const outside = (e) => { if (! wrap.contains (e.target)) close(); };
+    function open()
+    {
+        if (isOpen()) return;
+        list.hidden = false;
+        btn.setAttribute ('aria-expanded', 'true');
+        setActive (current);
+        document.addEventListener ('pointerdown', outside, true);
+    }
+    function close()
+    {
+        if (! isOpen()) return;
+        list.hidden = true;
+        btn.setAttribute ('aria-expanded', 'false');
+        btn.removeAttribute ('aria-activedescendant');
+        document.removeEventListener ('pointerdown', outside, true);
+    }
+    const choose = (r) =>
+    {
+        close();
+        if (r !== current) setNorm (key, p.choices.length > 1 ? order[r] / (p.choices.length - 1) : 0);
+    };
+
+    btn.addEventListener ('click', () => isOpen() ? close() : open());
+    btn.addEventListener ('blur', close);
+    btn.addEventListener ('keydown', (e) =>
+    {
+        const step = { ArrowDown: 1, ArrowUp: -1 }[e.key];
+        if (step)                                       { isOpen() ? setActive (active + step) : open(); }
+        else if (e.key === 'Enter' || e.key === ' ')    { isOpen() ? choose (active) : open(); }
+        else if (e.key === 'Escape' && isOpen())        close();
+        else if (e.key === 'Home' && isOpen())          setActive (0);
+        else if (e.key === 'End' && isOpen())           setActive (items.length - 1);
+        else return;
+        e.preventDefault();    // pas de défilement de la page, pas de « clic » clavier en double
+        e.stopPropagation();
+    });
+    btn.addEventListener ('keyup', (e) => { if (e.key === ' ') e.preventDefault(); });   // Espace : certains navigateurs cliquent au relâcher
+    items.forEach ((li, r) =>
+    {
+        li.addEventListener ('pointerdown', (e) => e.preventDefault());   // le focus reste sur le bouton
+        li.addEventListener ('pointermove', () => { if (active !== r) setActive (r); });
+        li.addEventListener ('click', () => choose (r));
+    });
+
+    on (key, (v) =>
+    {
+        const i = Math.round (v.real);
+        current = Math.max (0, order.indexOf (i));
+        btn.replaceChildren (...content (order[current]));
+        items.forEach ((li, j) => li.setAttribute ('aria-selected', String (j === current)));
+    });
+    return { root, button: btn, setDim (d) { root.classList.toggle ('dim', d); } };
+}
+
 // ---------------------------------------------------------------- case à cocher (paramètre booléen)
+// Sans libellé (label vide) : la case seule, nommée par opts.aria pour les lecteurs d'écran (interrupteur d'un filtre).
 export function toggle (key, label, opts = {})
 {
     const p = param (key);
-    const root = el ('label', 'ctl toggle');
+    const root = el ('label', `ctl toggle${label ? '' : ' bare'}`);
     const box = el ('input');
     box.type = 'checkbox';
     root.title = opts.tip ?? p.name;
-    root.append (box, el ('span', '', label));
+    root.append (box);
+    if (label) root.append (el ('span', '', label));
+    else box.setAttribute ('aria-label', opts.aria ?? p.name);
     box.addEventListener ('change', () => setNorm (key, box.checked ? 1 : 0));
     on (key, (v) => { box.checked = v.real > 0.5; });
-    return { root, box };
+    return { root, box, setDim (d) { root.classList.toggle ('dim', d); } };
 }
 
 // ---------------------------------------------------------------- routes de modulation (fenêtre d'édition)

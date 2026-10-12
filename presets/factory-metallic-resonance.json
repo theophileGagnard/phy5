@@ -1,6 +1,6 @@
 {
   "format": "rezonathor-preset",
-  "version": 1,
+  "version": 2,
   "name": "Metallic Resonance",
   "params": {
     "decay": 3,
@@ -19,7 +19,8 @@
     "modEnvDecay": 800,
     "modEnvSustain": 0.2,
     "modEnvRelease": 1620,
-    "modEnvReleaseCurve": 0.3
+    "modEnvReleaseCurve": 0.3,
+    "resoFilterOn": 1
   },
   "routes": [
     { "source": "Envelope", "target": "resoFilterFreq", "depth": 0.3, "bipolar": false }
